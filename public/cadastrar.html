@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="cadastrar.css">
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <title>LumaSat — Criar Conta</title>
+</head>
+
+<body>
+
+  <div class="card">
+
+    <div class="logo-wrapper">
+      <img src="img/LumaSat-Logo.png" alt="LumaSat Logo">
+    </div>
+
+    <h2>Criar Conta</h2>
+    <p class="page-desc">Cadastre-se no LumaSat</p>
+
+    <form action="/cadastrar" method="POST">
+
+      <div class="field">
+        <label class="field-label" for="nomeCompleto">Nome Completo</label>
+        <div class="input-wrapper">
+          <span class="input-icon"><i data-lucide="user" width="16" height="16"></i></span>
+          <input type="text" id="nomeCompleto" name="nome" placeholder="Digite o seu nome" required>
+        </div>
+      </div>
+
+      <div class="field">
+        <label class="field-label" for="empresa">Nome da Empresa</label>
+        <div class="input-wrapper">
+          <span class="input-icon"><i data-lucide="building" width="16" height="16"></i></span>
+          <input type="text" id="empresa" name="empresa" placeholder="Ex: Empresa Alfa" required>
+        </div>
+      </div>
+
+      <div class="field">
+        <label class="field-label" for="email">E-mail</label>
+        <div class="input-wrapper">
+          <span class="input-icon"><i data-lucide="mail" width="16" height="16"></i></span>
+          <input type="email" id="email" name="email" placeholder="seu@email.com" required>
+        </div>
+      </div>
+
+      <div class="field">
+        <label class="field-label" for="senha">Senha</label>
+        <div class="input-wrapper">
+          <span class="input-icon"><i data-lucide="lock" width="16" height="16"></i></span>
+          <input type="password" id="senha" name="senha" placeholder="••••••••" required minlength="6">
+        </div>
+        <span class="field-hint">Mínimo de 6 caracteres</span>
+      </div>
+
+      <div class="field">
+        <label class="field-label" for="confirmarSenha">Confirmar Senha</label>
+        <div class="input-wrapper">
+          <span class="input-icon"><i data-lucide="lock" width="16" height="16"></i></span>
+          <input type="password" id="confirmarSenha" name="confirmarSenha" placeholder="••••••••" required>
+        </div>
+      </div>
+
+      <button type="submit">Criar Conta</button>
+
+    </form>
+
+    <p class="login-link">Já tem uma conta? <a href="login.html">Faça login</a></p>
+
+    <hr class="divider">
+
+    <div class="features">
+      <div class="feature-item">
+        <i data-lucide="check-circle-2" width="16" height="16"></i>
+        Acesso completo ao sistema
+      </div>
+      <div class="feature-item">
+        <i data-lucide="check-circle-2" width="16" height="16"></i>
+        Monitoramento em tempo real
+      </div>
+      <div class="feature-item">
+        <i data-lucide="check-circle-2" width="16" height="16"></i>
+        Controle total das máquinas
+      </div>
+    </div>
+
+  </div>
+
+  <script>lucide.createIcons();</script>
+</body>
+
+</html>

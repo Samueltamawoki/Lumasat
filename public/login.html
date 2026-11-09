@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="index.css">
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <title>LumaSat</title>
+</head>
+
+<body>
+
+  <div class="card">
+
+    <div class="logo-wrapper">
+      <img src="img/LumaSat-Logo.png" alt="LumaSat Logo">
+    </div>
+
+    <h1 class="brand-title">
+      <span class="luma">Luma</span><span class="sat">Sat</span>
+    </h1>
+    <p class="subtitle">Sistema de Monitoramento Industrial</p>
+
+    <form action="/login" method="POST">
+
+      <div class="field">
+        <label class="field-label" for="email">Email</label>
+        <div class="input-wrapper">
+          <span class="input-icon"><i data-lucide="mail" width="16" height="16"></i></span>
+          <input type="email" id="email" name="email" placeholder="seu@email.com" required>
+        </div>
+      </div>
+
+      <div class="field">
+        <label class="field-label" for="senha">Senha</label>
+        <div class="input-wrapper">
+          <span class="input-icon"><i data-lucide="lock" width="16" height="16"></i></span>
+          <input type="password" id="senha" name="senha" placeholder="••••••••" required>
+        </div>
+      </div>
+
+      <p id="mensagemErro" style="color: red; margin-top: 10px; display: none;"></p>
+
+      <button type="submit">Entrar</button>
+
+    </form>
+
+    <p class="register-link">Não tem uma conta? <a href="cadastrar.html">Cadastre-se</a></p>
+
+    <hr class="divider">
+    <p class="hint">Crie uma conta ou use suas credenciais existentes</p>
+
+  </div>
+
+  <script>lucide.createIcons();</script>
+
+  <script>
+    // Verifica se a URL contém o parâmetro ?erro=true
+    const urlParams = new URLSearchParams(window.location.search);
+
+    if (urlParams.has('erro')) {
+      const msg = document.getElementById('mensagemErro');
+      msg.innerText = "E-mail ou senha incorretos!";
+      msg.style.display = "block"; // Faz a mensagem aparecer
+    }
+
+
+   // Exemplo dentro do evento de submit do login:
+const campoEmail = document.getElementById('email').value; // Pegue o valor do seu input de e-mail
+
+if (campoEmail) {
+  // Pega a parte antes do '@' (ex: "joao" de "joao@gmail.com")
+  const primeiroNome = campoEmail.split('@')[0];
+  
+  // Deixa a primeira letra maiúscula (ex: "Joao")
+  const nomeFormatado = primeiroNome.charAt(0).toUpperCase() + primeiroNome.slice(1);
+
+  // Salva no navegador
+  localStorage.setItem('usuarioEmail', campoEmail);
+  localStorage.setItem('usuarioNome', nomeFormatado);
+
+  // Vai para a dashboard
+  window.location.href = 'dashboard.html';
+}
+
+
+
+
+  </script>
+
+</body>
+
+</html>

@@ -1,0 +1,556 @@
+<!doctype html>
+<html lang="pt-br">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+
+  <title>LumaSat | Dashboard Industrial</title>
+
+  <link
+    href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;600;700;800&family=DM+Sans:wght@400;500;600;700&display=swap"
+    rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+  <link rel="stylesheet" href="dashboard.css" />
+</head>
+
+<body>
+  <!-- ========== TOP BAR COM LOGO PERSONALIZADA ========== -->
+  <div class="top-bar">
+    <div class="logo-area">
+      <img src="img/LumaSat-Logo.png" alt="LumaSat Logo" class="logo-img" />
+      <div class="logo-text">
+        <h1>LumaSat</h1>
+        <p>Sistema de Monitoramento</p>
+      </div>
+    </div>
+
+    <div class="header-actions">
+      <button onclick="usuario()" class="user-badge">
+        <div>
+          <i class="fa-regular fa-user"></i>
+          <span type="button" id="topBarUser">Usuário</span>
+        </div>
+      </button>
+
+      <div id="overlay-sidebar" onclick="usuario()"></div>
+
+      <!-- Barra Lateral (Sidebar do Usuário) -->
+      <aside id="sidebar-usuario">
+        <div class="sidebar-header">
+          <h3>Painel do Usuário</h3>
+          <button class="btn-fechar" onclick="usuario()">&times;</button>
+        </div>
+
+        <div class="sidebar-content">
+          <!-- Informações do Perfil -->
+          <div class="perfil-info">
+            <div class="avatar-circle">
+              <i class="fa-solid fa-user"></i>
+            </div>
+            <h2 id="nomeUsuario">A carregar...</h2>
+            <span id="emailUsuario" class="user-email">A carregar...</span>
+          </div>
+
+          <!-- Links / Opções adicionais -->
+          <nav class="sidebar-links">
+            <a href="#"><i class="fa-solid fa-user-gear"></i> Editar Perfil</a>
+            <a href="#"><i class="fa-solid fa-sliders"></i> Configurações</a>
+            <a href="#"><i class="fa-solid fa-bell"></i> Notificações</a>
+            <hr />
+            <a href="#" class="btn-logout" id="bntLogout"><i class="fa-solid fa-right-from-bracket"></i> Sair da
+              Conta</a>
+          </nav>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <!-- ========== DASHBOARD PRINCIPAL ========== -->
+  <div class="dashboard-container">
+    <div class="welcome-section">
+      <h2>Bem vindo, <span id="nomeUsuario">Usuário</span>!</h2>
+      <p>Aqui está o resumo do seu sistema</p>
+    </div>
+
+    <div class="cards-grid">
+      <div class="metric-card">
+        <div class="card-left">
+          <span class="card-label">Máquinas ativas</span>
+          <div class="card-number" id="cardAtivas">0<small>/0</small></div>
+        </div>
+        <div class="card-icon-right icon-green">
+          <i class="fa-solid fa-check-circle"></i>
+        </div>
+      </div>
+
+      <div class="metric-card">
+        <div class="card-left">
+          <span class="card-label">Eficiência média</span>
+          <div class="card-number" id="cardEficiencia">0%</div>
+        </div>
+        <div class="card-icon-right icon-purple">
+          <i class="fa-solid fa-chart-line"></i>
+        </div>
+      </div>
+
+      <div class="metric-card">
+        <div class="card-left">
+          <span class="card-label">Em operação</span>
+          <div class="card-number" id="cardOperacao">0</div>
+        </div>
+        <div class="card-icon-right icon-teal">
+          <i class="fa-solid fa-gear"></i>
+        </div>
+      </div>
+
+      <div class="metric-card <?= $alertas > 0 ? 'alert-warning' : '' ?>">
+        <div class="card-left">
+          <span class="card-label">Alertas ativos</span>
+          <div class="card-number" id="cardAlertas">0</div>
+        </div>
+        <div class="card-icon-right icon-orange">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal para Cadastrar Nova Máquina -->
+    <dialog id="meuPopup">
+      <div class="popup-header">
+        <h2>Cadastrar Nova Máquina</h2>
+        <p>Preencha os dados abaixo para registrar o equipamento no sistema.</p>
+      </div>
+      <form>
+        <div class="form-group">
+          <label for="nomeMaqui">Nome da Máquina</label>
+          <input type="text" id="nomeMaqui" placeholder="Ex: Máquina CNC 01" required />
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="modelo">Modelo</label>
+            <input type="text" id="modelo" placeholder="Ex: TX-500" />
+          </div>
+          <div class="form-group">
+            <label for="numSerie">Número de Série</label>
+            <input type="text" id="numSerie" placeholder="Ex: SN-99882" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="data">Data de Compra</label>
+            <input type="date" id="data" />
+          </div>
+          <div class="form-group">
+            <label for="tempConsumo">Tempo de Consumo</label>
+            <input type="text" id="tempConsumo" placeholder="Ex: 06:00 - 18:00" required />
+          </div>
+        </div>
+        <div class="popup-actions">
+          <button id="fechar" type="button" class="btn-secondary">Cancelar</button>
+          <button id="enviar" type="submit" class="btn-primary-modal">Cadastrar Máquina</button>
+        </div>
+      </form>
+    </dialog>
+
+    <!-- Modal Alerta Crítico -->
+    <dialog id="popupAlertaCritico">
+      <div class="modal-overlay">
+        <div class="modal-card">
+          <div class="modal-header">
+            <div class="alert-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
+                <line x1="12" y1="9" x2="12" y2="13" />
+                <line x1="12" y1="17" x2="12.01" y2="17" />
+              </svg>
+            </div>
+            <div>
+              <h2>Alerta do Sistema</h2>
+              <span class="subtitle">Nível crítico detetado</span>
+            </div>
+          </div>
+
+          <p class="modal-description">
+            As seguintes máquinas atingiram níveis críticos de temperatura (<b>≥ 80°C</b>):
+          </p>
+
+          <div class="machine-list" id="listaMaquinasCriticas"></div>
+
+          <div class="modal-footer">
+            <button class="btn-confirm" onclick="document.getElementById('popupAlertaCritico').close()">Ciente</button>
+          </div>
+        </div>
+      </div>
+    </dialog>
+
+    <div class="table-wrapper">
+      <div class="table-header">
+        <h3><i class="fa-solid fa-microchip"></i> Máquinas em Operação</h3>
+        <div class="search-box">
+          <i class="fa-solid fa-magnifying-glass"></i>
+          <input type="text" id="searchMachine" placeholder="Buscar máquinas..." />
+        </div>
+        <button class="btn-add-machine apenas-supervisor" id="bntAdicionar">
+          <i class="fa-solid fa-plus"></i> Nova Máquina
+        </button>
+      </div>
+      <div class="table-responsive">
+        <table class="machines-table">
+          <thead>
+            <tr>
+              <th>Máquina</th>
+              <th>Status</th>
+              <th>Eficiência</th>
+              <th>Temperatura</th>
+              <th>Alerta</th>
+            </tr>
+          </thead>
+          <tbody id="machineTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="dashboard-footer">
+      <p>
+        <i class="fa-regular fa-copyright"></i> 2025 LumaSat - Monitoramento Industrial de precisão
+      </p>
+      <button class="refresh-btn" onclick="location.reload()">
+        <i class="fa-solid fa-rotate-right"></i> Atualizar dados
+      </button>
+    </div>
+  </div>
+
+  <dialog id="popupStatusMaquina">
+    <div class="popup-header">
+      <h2 id="modalNomeMaquina">Nome da Máquina</h2>
+      <p>Controlo de estado do equipamento</p>
+    </div>
+
+    <div class="status-box">
+      <p>Estado atual: <strong id="modalStatusMaquina">-</strong></p>
+    </div>
+
+    <div class="popup-actions" style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
+      <button type="button" class="btn-secondary" onclick="document.getElementById('popupStatusMaquina').close()">
+        Cancelar
+      </button>
+      <button id="btnAlternarStatusModal" class="apenas-tecnico-supervisor" type="button"
+        onclick="alternarStatusSelecionado()">
+        Ligar / Desligar
+      </button>
+    </div>
+  </dialog>
+
+
+
+  <script>
+    // 1. Identificação Rígida pela URL da Aba Atual
+    function obterEmailURL() {
+      const urlParams = new URLSearchParams(window.location.search);
+      let email = urlParams.get("email");
+      if (email) {
+        sessionStorage.setItem("usuarioEmailLogado", email);
+        return email;
+      }
+      return sessionStorage.getItem("usuarioEmailLogado");
+    }
+
+    const emailLogado = obterEmailURL();
+    let empresaUsuarioLogado = "";
+    let maquinaSelecionada = null;
+
+    // 2. Carrega Perfil e Permissões do Utilizador
+    async function carregarPerfil() {
+      try {
+        if (!emailLogado) return;
+
+        const resposta = await fetch(`/api/usuario?email=${encodeURIComponent(emailLogado)}`);
+        if (!resposta.ok) return;
+
+        const usuario = await resposta.json();
+
+        if (usuario.empresa) {
+          empresaUsuarioLogado = usuario.empresa;
+        }
+
+        // Atualiza cabeçalho e sidebar
+        const elTopUser = document.getElementById('topBarUser');
+        if (elTopUser) elTopUser.textContent = usuario.nome || "Usuário";
+
+        const elEmail = document.getElementById('emailUsuario');
+        if (elEmail) elEmail.textContent = usuario.email;
+
+        document.querySelectorAll("#nomeUsuario").forEach(el => {
+          el.textContent = usuario.nome || "Usuário";
+        });
+
+        // Controlo de Permissões (RBAC)
+        if (usuario.nivel) {
+          const nivel = usuario.nivel.toLowerCase();
+          const eTecnico = nivel === "técnico" || nivel === "tecnico";
+          const eSupervisor = nivel === "supervisor";
+
+          if (eTecnico || eSupervisor) {
+            document.querySelectorAll(".apenas-tecnico-supervisor")
+              .forEach(el => el.style.setProperty("display", "block", "important"));
+          }
+
+          if (eSupervisor) {
+            document.querySelectorAll(".apenas-supervisor")
+              .forEach(el => el.style.setProperty("display", "inline-flex", "important"));
+          }
+        }
+
+      } catch (erro) {
+        console.error('Erro ao carregar perfil:', erro);
+      }
+    }
+
+    // 3. Carrega Dashboard (Solicita SEMPRE com o e-mail da URL)
+    async function carregarDashboard() {
+      try {
+        // Extrai o e-mail diretamente da URL da aba/janela atual (?email=xxx)
+        const urlParams = new URLSearchParams(window.location.search);
+        const emailAtual = urlParams.get("email") || sessionStorage.getItem("usuarioEmailLogado");
+
+        if (!emailAtual) return;
+
+        // Faz o pedido à API passando SEMPRE o e-mail único desta janela
+        const resposta = await fetch(`/api/maquinas?email=${encodeURIComponent(emailAtual)}`);
+        if (!resposta.ok) return;
+
+        const dados = await resposta.json();
+
+        // Preenche os Cartões
+        const elAtivas = document.getElementById("cardAtivas");
+        if (elAtivas) elAtivas.innerHTML = `${dados.ativas}<small>/${dados.total}</small>`;
+
+        const elEfic = document.getElementById("cardEficiencia");
+        if (elEfic) elEfic.innerText = `${dados.mediaEficiencia}%`;
+
+        const elOp = document.getElementById("cardOperacao");
+        if (elOp) elOp.innerText = dados.operacao;
+
+        const elAlert = document.getElementById("cardAlertas");
+        if (elAlert) {
+          elAlert.innerText = dados.alertas;
+          if (dados.alertas > 0) elAlert.style.color = "#dc2626";
+          else elAlert.style.color = "";
+        }
+
+        // Preenche a Tabela
+        const tabela = document.getElementById("machineTableBody");
+        if (!tabela) return;
+
+        tabela.innerHTML = "";
+
+        dados.maquinas.forEach((m) => {
+          let statusClass = m.status === "ativa" ? "status-active" : "status-off";
+          let statusIcon = m.status === "ativa" ? "fa-play-circle" : "fa-stop-circle";
+          let statusText = m.status === "ativa" ? "Ativa" : "Desligada";
+
+          const estaCritico = m.status === "ativa" && (m.temperatura >= 80 || m.alerta);
+
+          let tempClass = "";
+          if (m.temperatura >= 100) tempClass = "temp-critical";
+          else if (m.temperatura >= 80) tempClass = "temp-high";
+
+          const linha = `
+        <tr class="machine-row" style="cursor: pointer;" onclick="abrirPopupMaquina('${m.nome}', '${m.status}')">
+            <td style="font-weight: 600;">
+                <i class="fa-solid fa-microchip" style="color: #1a237e; margin-right: 8px;"></i>
+                ${m.nome}
+            </td>
+            <td>
+                <span class="status-badge ${statusClass}">
+                    <i class="fa-solid ${statusIcon}"></i> ${statusText}
+                </span>
+            </td>
+            <td>
+                <div class="efficiency-cell">
+                    <div class="progress-line">
+                        <div class="progress-fill" style="width: ${m.eficiencia}%;"></div>
+                    </div>
+                    <span class="efficiency-text">${m.eficiencia}%</span>
+                </div>
+            </td>
+            <td>
+                <span class="${tempClass}">
+                    <i class="fa-solid fa-temperature-high"></i> ${m.temperatura}°C
+                </span>
+            </td>
+            <td>
+                ${estaCritico
+              ? '<span class="alert-badge-red"><i class="fa-solid fa-circle-exclamation"></i> Crítico</span>'
+              : '<span class="alert-badge-green"><i class="fa-regular fa-circle-check"></i> Normal</span>'
+            }
+            </td>
+        </tr>
+      `;
+          tabela.innerHTML += linha;
+        });
+
+      } catch (erro) {
+        console.error("Erro ao carregar dados:", erro);
+      }
+    }
+
+    // 4. Filtro de Busca
+    function ativarFiltroBusca() {
+      const searchInput = document.getElementById("searchMachine");
+      if (!searchInput) return;
+
+      searchInput.addEventListener("keyup", function () {
+        const filter = this.value.toLowerCase().trim();
+        const tableRows = document.querySelectorAll("#machineTableBody .machine-row");
+
+        tableRows.forEach((row) => {
+          const nameCell = row.cells[0];
+          if (nameCell) {
+            row.style.display = nameCell.textContent.toLowerCase().includes(filter) ? "" : "none";
+          }
+        });
+      });
+    }
+
+    // 5. Sidebar
+    function usuario() {
+      const sidebar = document.getElementById("sidebar-usuario");
+      const overlay = document.getElementById("overlay-sidebar");
+      if (sidebar && overlay) {
+        sidebar.classList.toggle("open");
+        overlay.classList.toggle("open");
+      }
+    }
+
+    // 6. Pop-up de Estado
+    function abrirPopupMaquina(nome, status) {
+      maquinaSelecionada = { nome, status };
+
+      document.getElementById("modalNomeMaquina").textContent = nome;
+      document.getElementById("modalStatusMaquina").textContent = status === "ativa" ? "Ativa" : "Desligada";
+
+      const btnAlternar = document.getElementById("btnAlternarStatusModal");
+
+      if (status === "ativa") {
+        btnAlternar.textContent = "Desligar Máquina";
+        btnAlternar.style.backgroundColor = "#dc2626";
+      } else {
+        btnAlternar.textContent = "Ligar Máquina";
+        btnAlternar.style.backgroundColor = "#16a34a";
+      }
+
+      document.getElementById("popupStatusMaquina").showModal();
+    }
+
+    async function alternarStatusSelecionado() {
+      if (!maquinaSelecionada) return;
+
+      const novoStatus = maquinaSelecionada.status === "ativa" ? "inativa" : "ativa";
+      const novoOperacao = novoStatus === "ativa";
+
+      const dadosAtualizacao = {
+        nome: maquinaSelecionada.nome,
+        status: novoStatus,
+        operacao: novoOperacao
+      };
+
+      if (novoStatus === "inativa") {
+        dadosAtualizacao.temperatura = 20;
+        dadosAtualizacao.eficiencia = 0;
+        dadosAtualizacao.alerta = false;
+      }
+
+      try {
+        const resposta = await fetch("/api/maquinas", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(dadosAtualizacao)
+        });
+
+        if (resposta.ok) {
+          document.getElementById("popupStatusMaquina").close();
+          carregarDashboard();
+        } else {
+          alert("Erro ao alterar o estado da máquina.");
+        }
+      } catch (erro) {
+        console.error("Erro ao comunicar com o servidor:", erro);
+      }
+    }
+
+    // 7. Eventos ao carregar a página
+    document.addEventListener("DOMContentLoaded", async () => {
+      await carregarPerfil();
+      await carregarDashboard();
+      ativarFiltroBusca();
+
+      setInterval(carregarDashboard, 3000);
+
+      const btnExit = document.getElementById("bntLogout");
+      if (btnExit) {
+        btnExit.addEventListener("click", function (e) {
+          e.preventDefault();
+          sessionStorage.clear();
+          localStorage.clear();
+          window.location.href = "login.html";
+        });
+      }
+
+      const popup = document.getElementById("meuPopup");
+      const btnAbrir = document.getElementById("bntAdicionar");
+      const btnFechar = document.getElementById("fechar");
+
+      if (btnAbrir && popup) {
+        btnAbrir.addEventListener("click", () => popup.showModal());
+      }
+      if (btnFechar && popup) {
+        btnFechar.addEventListener("click", () => popup.close());
+      }
+
+      const formPopup = popup ? popup.querySelector("form") : null;
+      if (formPopup) {
+        formPopup.addEventListener("submit", async (e) => {
+          e.preventDefault();
+
+          const novaMaquina = {
+            nome: document.getElementById("nomeMaqui").value,
+            modelo: document.getElementById("modelo").value,
+            numSerie: document.getElementById("numSerie").value,
+            dataCompra: document.getElementById("data").value,
+            tempoConsumo: document.getElementById("tempConsumo").value,
+            empresa: empresaUsuarioLogado,
+            status: "inativa",
+            eficiencia: 0,
+            temperatura: 20,
+            operacao: false,
+            alerta: false,
+          };
+
+          try {
+            const resposta = await fetch("/api/maquinas", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(novaMaquina),
+            });
+
+            if (resposta.ok) {
+              alert("✅ Máquina adicionada com sucesso!");
+              popup.close();
+              formPopup.reset();
+              carregarDashboard();
+            } else {
+              alert("❌ Erro ao adicionar máquina.");
+            }
+          } catch (erro) {
+            console.error("Erro na requisição:", erro);
+          }
+        });
+      }
+    });
+  </script>
+</body>
+
+</html>
