@@ -226,19 +226,20 @@ button[type="submit"]:active { transform: scale(0.985); }
     outline: none;
     font-size: 14px;
     font-family: inherit;
-    color: #ffffff; /* Altere para a cor do texto dos outros inputs se não for branco */
+    color: #1e293b; /* Garante que o texto selecionado fique bem visível */
     cursor: pointer;
-    padding: 8px 0;
-    appearance: auto; /* Mantém a seta padrão do navegador */
+    padding: 10px 0;
+    appearance: auto;
 }
 
-/* Estilo para as opções do menu que abre */
+/* Estilo do menu suspenso ao abrir */
 .input-wrapper select option {
-    background-color: #1a1d24; /* Fundo escuro do menu suspenso */
-    color: #ffffff;            /* Texto das opções */
+    background-color: #ffffff;
+    color: #1e293b;
+    padding: 8px;
 }
 
-/* Cor do texto desativado (placeholder "Selecione o nível de acesso") */
+/* Cor do texto do placeholder desativado */
 .input-wrapper select option[disabled] {
-    color: #888888;
+    color: #94a3b8;
 }
