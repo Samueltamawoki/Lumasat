@@ -219,27 +219,47 @@ button[type="submit"]:active { transform: scale(0.985); }
 
 .feature-item svg { color: var(--green); flex-shrink: 0; }
 
+.input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
 .input-wrapper select {
     width: 100%;
-    background: transparent;
-    border: none;
-    outline: none;
+    background-color: #f1f5f9;   /* Cor de fundo do campo */
+    border: 1px solid #cbd5e1;    /* Borda suave */
+    border-radius: 8px;          /* Cantos arredondados */
+    padding: 10px 12px 10px 40px; /* 40px na esquerda empurra o texto para não sobrepor o ícone */
     font-size: 14px;
     font-family: inherit;
-    color: #1e293b; /* Garante que o texto selecionado fique bem visível */
+    color: #0f172a;              /* Cor do texto bem visível */
+    outline: none;
     cursor: pointer;
-    padding: 10px 0;
-    appearance: auto;
+    appearance: auto;            /* Mantém a seta de seleção à direita */
+    transition: all 0.2s ease;
 }
 
-/* Estilo do menu suspenso ao abrir */
+/* Efeito ao clicar/focar no campo */
+.input-wrapper select:focus {
+    border-color: #2563eb;
+    background-color: #ffffff;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
+/* Garante que o ícone fique fixo à esquerda dentro do campo */
+.input-wrapper .input-icon {
+    position: absolute;
+    left: 12px;
+    pointer-events: none; /* Permite clicar no campo através do ícone */
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    color: #475569;
+}
+
+/* Fundo das opções quando o menu abre */
 .input-wrapper select option {
     background-color: #ffffff;
-    color: #1e293b;
-    padding: 8px;
-}
-
-/* Cor do texto do placeholder desativado */
-.input-wrapper select option[disabled] {
-    color: #94a3b8;
+    color: #0f172a;
 }
