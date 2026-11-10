@@ -218,3 +218,27 @@ button[type="submit"]:active { transform: scale(0.985); }
 }
 
 .feature-item svg { color: var(--green); flex-shrink: 0; }
+
+.input-wrapper select {
+    width: 100%;
+    background: transparent;
+    border: none;
+    outline: none;
+    font-size: 14px;
+    font-family: inherit;
+    color: #ffffff; /* Altere para a cor do texto dos outros inputs se não for branco */
+    cursor: pointer;
+    padding: 8px 0;
+    appearance: auto; /* Mantém a seta padrão do navegador */
+}
+
+/* Estilo para as opções do menu que abre */
+.input-wrapper select option {
+    background-color: #1a1d24; /* Fundo escuro do menu suspenso */
+    color: #ffffff;            /* Texto das opções */
+}
+
+/* Cor do texto desativado (placeholder "Selecione o nível de acesso") */
+.input-wrapper select option[disabled] {
+    color: #888888;
+}
