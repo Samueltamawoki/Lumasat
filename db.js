@@ -5,7 +5,7 @@ const pool = mysql.createPool({
     host: process.env.DB_HOST || "mysql-27f0249b-samuelsenai1092-088b.d.aivencloud.com",
     port: process.env.DB_PORT || 16820,
     user: process.env.DB_USER || "avnadmin",
-    password: process.env.DB_PASSWORD || "AVNS_F1UVG7prpJ5ui0IUBrh",
+    password: process.env.DB_PASSWORD, // Será lido diretamente do Render.com
     database: process.env.DB_NAME || "lumasat",
     ssl: { rejectUnauthorized: false },
     waitForConnections: true,
