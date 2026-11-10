@@ -218,3 +218,18 @@ button[type="submit"]:active { transform: scale(0.985); }
 }
 
 .feature-item svg { color: var(--green); flex-shrink: 0; }
+
+.input-wrapper select {
+    width: 100%;
+    background: transparent;
+    border: none;
+    outline: none;
+    font-size: 14px;
+    color: #ffffff; /* ou a cor do texto do seu formulário */
+    cursor: pointer;
+}
+
+.input-wrapper select option {
+    background-color: #1e1e1e; /* cor de fundo do menu suspenso */
+    color: #ffffff;
+}

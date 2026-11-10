@@ -109,27 +109,16 @@ function permitirNiveis(...niveisPermitidos) {
 // =============================================================
 
 // ROTA: Registar Utilizador
-app.post("/cadastrar", (req, res) => {
-    const { email, senha, nome, empresa, nivel, confirmarSenha } = req.body;
+app.post('/cadastrar', (req, res) => {
+    const { nome, empresa, email, senha, nivel } = req.body;
 
-    if (senha !== confirmarSenha) {
-        return res.send("As senhas não são iguais");
-    }
-
-    const niveisValidos = ['operador', 'supervisor', 'técnico'];
-    const nivelFinal = niveisValidos.includes(nivel) ? nivel : 'operador';
-
-    const sql = `
-        INSERT INTO login(email, senha, nome, empresa, nivel) 
-        VALUES (?, ?, ?, ?, ?)
-    `;
-
-    db.query(sql, [email, senha, nome, empresa, nivelFinal], (erro, resultado) => {
-        if (erro) {
-            console.error("Erro no MYSQL:", erro);
-            return res.send("Erro ao cadastrar");
+    const sql = "INSERT INTO login (nome, empresa, email, senha, nivel) VALUES (?, ?, ?, ?, ?)";
+    db.query(sql, [nome, empresa, email, senha, nivel || 'operador'], (err, result) => {
+        if (err) {
+            console.error("Erro ao cadastrar:", err);
+            return res.status(500).send("Erro no servidor");
         }
-        res.redirect("/login");
+        res.redirect('/login.html');
     });
 });
 
