@@ -55,11 +55,15 @@
           <!-- Links / Opções adicionais -->
           <nav class="sidebar-links">
             <a href="#"><i class="fa-solid fa-user-gear"></i> Editar Perfil</a>
-            <a href="#"><i class="fa-solid fa-sliders"></i> Configurações</a>
+            <a href="cadastrar.html" id="linkAddIntegrantes" style="display: none;">
+              <i class="fa-solid fa-user-plus"></i> Adicionar Integrantes
+            </a>
+
             <a href="#"><i class="fa-solid fa-bell"></i> Notificações</a>
             <hr />
-            <a href="#" class="btn-logout" id="bntLogout"><i class="fa-solid fa-right-from-bracket"></i> Sair da
-              Conta</a>
+            <a href="#" class="btn-logout" id="bntLogout">
+              <i class="fa-solid fa-right-from-bracket"></i> Sair da Conta
+            </a>
           </nav>
         </div>
       </aside>
@@ -246,6 +250,18 @@
 
 
   <script>
+
+    const usuarioLogado = JSON.parse(localStorage.getItem("usuario")) || {};
+
+    // Elemento do link "Adicionar Integrantes"
+    const linkAddIntegrantes = document.getElementById("linkAddIntegrantes");
+
+    // Verifica se o nível do utilizador é Supervisor (ignora maiúsculas/minúsculas)
+    if (usuarioLogado.nivel && usuarioLogado.nivel.toLowerCase() === "supervisor") {
+      linkAddIntegrantes.style.display = "flex"; // Exibe a opção apenas para o Supervisor
+    } else {
+      linkAddIntegrantes.style.display = "none"; // Oculta para Operador e Técnico
+    }
     // 1. Identificação Rígida pela URL da Aba Atual
     function obterEmailURL() {
       const urlParams = new URLSearchParams(window.location.search);
