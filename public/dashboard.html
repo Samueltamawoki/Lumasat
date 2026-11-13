@@ -292,31 +292,32 @@
         });
 
         // Controlo de Permissões (RBAC)
-        if (usuario.nivel) {
-          const nivel = usuario.nivel.trim().toLowerCase();
-          const eTecnico = nivel === "técnico" || nivel === "tecnico";
-          const eSupervisor = nivel === "supervisor";
-          const eMaster = nivel === "master";
+        localStorage.setItem("usuario", JSON.stringify(usuario));
 
-          if (eTecnico || eSupervisor || eMaster) {
-            document.querySelectorAll(".apenas-tecnico-supervisor")
-              .forEach(el => el.style.setProperty("display", "block", "important"));
-          }
+        // Controlo de Permissões (RBAC)
+        const nivel = (usuario.nivel || "").trim().toLowerCase();
+        const eTecnico = nivel === "técnico" || nivel === "tecnico";
+        const eSupervisor = nivel === "supervisor";
+        const eMaster = nivel === "master";
 
+        if (eTecnico || eSupervisor || eMaster) {
+          document.querySelectorAll(".apenas-tecnico-supervisor")
+            .forEach(el => el.style.setProperty("display", "block", "important"));
+        }
+
+        if (eSupervisor || eMaster) {
+          document.querySelectorAll(".apenas-supervisor")
+            .forEach(el => el.style.setProperty("display", "inline-flex", "important"));
+        }
+
+        // Esconde ou mostra "Adicionar Integrantes" com !important
+        const linkAddIntegrantes = document.getElementById("linkAddIntegrantes");
+        if (linkAddIntegrantes) {
           if (eSupervisor || eMaster) {
-            document.querySelectorAll(".apenas-supervisor")
-              .forEach(el => el.style.setProperty("display", "inline-flex", "important"));
-          }
-
-          // Mostra "Adicionar Integrantes" e passa o ?email= no link
-          const linkAddIntegrantes = document.getElementById("linkAddIntegrantes");
-          if (linkAddIntegrantes) {
-            if (eSupervisor || eMaster) {
-              linkAddIntegrantes.href = `cadastrar.html?email=${encodeURIComponent(usuario.email)}`;
-              linkAddIntegrantes.style.display = "flex";
-            } else {
-              linkAddIntegrantes.style.display = "none";
-            }
+            linkAddIntegrantes.href = `cadastrar.html?email=${encodeURIComponent(usuario.email)}`;
+            linkAddIntegrantes.style.setProperty("display", "flex", "important");
+          } else {
+            linkAddIntegrantes.style.setProperty("display", "none", "important");
           }
         }
 
