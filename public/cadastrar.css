@@ -261,15 +261,39 @@ button[type="submit"]:active { transform: scale(0.985); }
 /* Fundo das opções quando o menu abre */
 .input-wrapper select option {
     background-color: #ffffff;
-<<<<<<< HEAD
     color: #0f172a;
-=======
-    color: #1e293b;
-    padding: 8px;
 }
 
-/* Cor do texto do placeholder desativado */
-.input-wrapper select option[disabled] {
-    color: #94a3b8;
->>>>>>> 19e8732af0c7aaaddf844f31354259d1b8769de1
+/* Botão Voltar ao Dashboard */
+.top-actions {
+    display: flex;
+    justify-content: flex-start;
+    margin-bottom: 12px;
+}
+
+.btn-voltar {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #475569;
+    background-color: #f1f5f9;
+    padding: 8px 12px;
+    border-radius: 8px;
+    text-decoration: none;
+    transition: all 0.2s ease;
+}
+
+.btn-voltar:hover {
+    background-color: #e2e8f0;
+    color: #0f172a;
+}
+
+/* Estilo visual quando a empresa está preenchida automaticamente */
+.input-wrapper input.input-bloqueado {
+    background-color: #e2e8f0;
+    color: #475569;
+    cursor: not-allowed;
+    font-weight: 500;
 }

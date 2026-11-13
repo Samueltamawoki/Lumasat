@@ -13,6 +13,14 @@
 
   <div class="card">
 
+    <!-- NOVO BOTÃO: Voltar para o Dashboard -->
+    <div class="top-actions">
+      <a href="dashboard.html" id="btnVoltarDashboard" class="btn-voltar">
+        <i data-lucide="arrow-left" width="16" height="16"></i>
+        Voltar ao Dashboard
+      </a>
+    </div>
+
     <div class="logo-wrapper">
       <img src="img/LumaSat-Logo.png" alt="LumaSat Logo">
     </div>
@@ -36,6 +44,7 @@
           <span class="input-icon"><i data-lucide="building" width="16" height="16"></i></span>
           <input type="text" id="empresa" name="empresa" placeholder="Ex: Empresa Alfa" required>
         </div>
+        <span id="empresaHint" class="field-hint" style="display: none;">Empresa vinculada automaticamente ao seu perfil</span>
       </div>
 
       <div class="field">
@@ -43,7 +52,7 @@
         <div class="input-wrapper">
           <span class="input-icon"><i data-lucide="shield" width="16" height="16"></i></span>
           <select id="nivel" name="nivel" required>
-            <option value="" disabled selected>Selecione o nível de acesso</option>
+            <option value="" disabled selected hidden>Selecione o nível de acesso</option>
             <option value="operador">Operador</option>
             <option value="técnico">Técnico</option>
             <option value="Supervisor">Supervisor</option>
@@ -82,7 +91,28 @@
 
   </div>
 
-  <script>lucide.createIcons();</script>
+  <script>
+    lucide.createIcons();
+
+    document.addEventListener("DOMContentLoaded", () => {
+      const usuarioLogado = JSON.parse(localStorage.getItem("usuario")) || {};
+      const inputEmpresa = document.getElementById("empresa");
+      const empresaHint = document.getElementById("empresaHint");
+
+      // Verifica se é o utilizador Master (altere o e-mail ou nível conforme o seu banco)
+      const isMaster = 
+        (usuarioLogado.nivel && usuarioLogado.nivel.toLowerCase() === "master") ||
+        usuarioLogado.email === "admin@email.com";
+
+      // Se NÃO for o Master e tiver uma empresa associada, preenche e bloqueia a edição
+      if (!isMaster && usuarioLogado.empresa) {
+        inputEmpresa.value = usuarioLogado.empresa;
+        inputEmpresa.readOnly = true; // readOnly garante que o valor continua a ser enviado no formulário
+        inputEmpresa.classList.add("input-bloqueado");
+        empresaHint.style.display = "block";
+      }
+    });
+  </script>
 </body>
 
 </html>
