@@ -44,7 +44,8 @@
           <span class="input-icon"><i data-lucide="building" width="16" height="16"></i></span>
           <input type="text" id="empresa" name="empresa" placeholder="Ex: Empresa Alfa" required>
         </div>
-        <span id="empresaHint" class="field-hint" style="display: none;">Empresa vinculada automaticamente ao seu perfil</span>
+        <span id="empresaHint" class="field-hint" style="display: none;">Empresa vinculada automaticamente ao seu
+          perfil</span>
       </div>
 
       <div class="field">
@@ -94,22 +95,43 @@
   <script>
     lucide.createIcons();
 
-    document.addEventListener("DOMContentLoaded", () => {
-      const usuarioLogado = JSON.parse(localStorage.getItem("usuario")) || {};
+    document.addEventListener("DOMContentLoaded", async () => {
       const inputEmpresa = document.getElementById("empresa");
       const empresaHint = document.getElementById("empresaHint");
+      const btnVoltar = document.getElementById("btnVoltarDashboard");
 
-      // Verifica se é o utilizador Master (altere o e-mail ou nível conforme o seu banco)
-      const isMaster = 
-        (usuarioLogado.nivel && usuarioLogado.nivel.toLowerCase() === "master") ||
-        usuarioLogado.email === "admin@email.com";
+      // 1. Obtém o e-mail pela URL (?email=...) ou pelo localStorage
+      const params = new URLSearchParams(window.location.search);
+      const usuarioSalvo = JSON.parse(localStorage.getItem("usuario")) || {};
+      const email = params.get("email") || usuarioSalvo.email;
 
-      // Se NÃO for o Master e tiver uma empresa associada, preenche e bloqueia a edição
-      if (!isMaster && usuarioLogado.empresa) {
-        inputEmpresa.value = usuarioLogado.empresa;
-        inputEmpresa.readOnly = true; // readOnly garante que o valor continua a ser enviado no formulário
-        inputEmpresa.classList.add("input-bloqueado");
-        empresaHint.style.display = "block";
+      if (!email) return;
+
+      // 2. Mantém o ?email= no botão "Voltar ao Dashboard" para não perderes a sessão
+      if (btnVoltar) {
+        btnVoltar.href = `/dashboard?email=${encodeURIComponent(email)}`;
+      }
+
+      try {
+        // 3. Consulta a rota /api/usuario?email=... que já existe no teu server.js
+        const resposta = await fetch(`/api/usuario?email=${encodeURIComponent(email)}`);
+        if (!resposta.ok) return;
+
+        const usuarioLogado = await resposta.json();
+        localStorage.setItem("usuario", JSON.stringify(usuarioLogado));
+
+        // 4. Verifica se é o utilizador Master (nivel = 'master' na tabela login)
+        const isMaster = (usuarioLogado.nivel || "").trim().toLowerCase() === "master";
+
+        // Se NÃO for Master e tiver empresa associada, preenche e bloqueia o campo
+        if (!isMaster && usuarioLogado.empresa) {
+          inputEmpresa.value = usuarioLogado.empresa;
+          inputEmpresa.readOnly = true;
+          inputEmpresa.classList.add("input-bloqueado");
+          if (empresaHint) empresaHint.style.display = "block";
+        }
+      } catch (erro) {
+        console.error("Erro ao carregar dados da empresa:", erro);
       }
     });
   </script>

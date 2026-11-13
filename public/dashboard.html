@@ -250,18 +250,6 @@
 
 
   <script>
-
-    const usuarioLogado = JSON.parse(localStorage.getItem("usuario")) || {};
-
-    // Elemento do link "Adicionar Integrantes"
-    const linkAddIntegrantes = document.getElementById("linkAddIntegrantes");
-
-    // Verifica se o nível do utilizador é Supervisor (ignora maiúsculas/minúsculas)
-    if (usuarioLogado.nivel && usuarioLogado.nivel.toLowerCase() === "supervisor") {
-      linkAddIntegrantes.style.display = "flex"; // Exibe a opção apenas para o Supervisor
-    } else {
-      linkAddIntegrantes.style.display = "none"; // Oculta para Operador e Técnico
-    }
     // 1. Identificação Rígida pela URL da Aba Atual
     function obterEmailURL() {
       const urlParams = new URLSearchParams(window.location.search);
@@ -286,6 +274,7 @@
         if (!resposta.ok) return;
 
         const usuario = await resposta.json();
+        localStorage.setItem("usuario", JSON.stringify(usuario));
 
         if (usuario.empresa) {
           empresaUsuarioLogado = usuario.empresa;
@@ -304,18 +293,30 @@
 
         // Controlo de Permissões (RBAC)
         if (usuario.nivel) {
-          const nivel = usuario.nivel.toLowerCase();
+          const nivel = usuario.nivel.trim().toLowerCase();
           const eTecnico = nivel === "técnico" || nivel === "tecnico";
           const eSupervisor = nivel === "supervisor";
+          const eMaster = nivel === "master";
 
-          if (eTecnico || eSupervisor) {
+          if (eTecnico || eSupervisor || eMaster) {
             document.querySelectorAll(".apenas-tecnico-supervisor")
               .forEach(el => el.style.setProperty("display", "block", "important"));
           }
 
-          if (eSupervisor) {
+          if (eSupervisor || eMaster) {
             document.querySelectorAll(".apenas-supervisor")
               .forEach(el => el.style.setProperty("display", "inline-flex", "important"));
+          }
+
+          // Mostra "Adicionar Integrantes" e passa o ?email= no link
+          const linkAddIntegrantes = document.getElementById("linkAddIntegrantes");
+          if (linkAddIntegrantes) {
+            if (eSupervisor || eMaster) {
+              linkAddIntegrantes.href = `cadastrar.html?email=${encodeURIComponent(usuario.email)}`;
+              linkAddIntegrantes.style.display = "flex";
+            } else {
+              linkAddIntegrantes.style.display = "none";
+            }
           }
         }
 
