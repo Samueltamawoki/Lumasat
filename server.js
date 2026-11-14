@@ -1,290 +1,243 @@
+require("./lib/env");
 const express = require("express");
-const db = require("./db");
 const path = require("path");
 const fs = require("fs");
+const db = require("./db");
+const pdb = db.promise();
+const { auditar, criarSessao, encerrarSessao, criarMiddlewares, verificarOrigem } = require("./lib/auth");
+const { verificarSenha, gastarTempo } = require("./lib/seguranca");
+const { normalizarEmail } = require("./lib/validacoes");
+const limite = require("./lib/limite");
+const rotasConvites = require("./rotas/convites");
+const rotasSolicitacoes = require("./rotas/solicitacoes");
+const rotasAdmin = require("./rotas/admin");
 
 const app = express();
+app.set("trust proxy", 1);           // Render fica atrás de um proxy: necessário para req.ip e cookies seguros
+app.disable("x-powered-by");
 
-// Middlewares
-app.use(express.json());
-app.use(express.static("public", { extensions: ["html"] }));
-app.use(express.urlencoded({ extended: true }));
+// Cabeçalhos básicos de segurança
+app.use((req, res, next) => {
+    res.set("X-Content-Type-Options", "nosniff");
+    res.set("X-Frame-Options", "DENY");
+    res.set("Referrer-Policy", "no-referrer");
+    next();
+});
 
-// Função auxiliar para ler o ficheiro JSON
+const { autenticar, exigirLogin, exigirLoginPagina, exigirNivel, exigirEmpresa } = criarMiddlewares(pdb);
+const guardas = { exigirLogin, exigirNivel, exigirEmpresa };
+
+app.use(express.json({ limit: "20kb" }));
+app.use(express.urlencoded({ extended: true, limit: "20kb" }));
+app.use(verificarOrigem);
+app.use(autenticar);
+
+// O dashboard exige sessão; sem ela vai para o login. (Declarado antes do express.static.)
+app.get(["/dashboard", "/dashboard.html"], exigirLoginPagina, (req, res) => {
+    res.set("Cache-Control", "no-store");
+    res.sendFile(path.join(__dirname, "public", "dashboard.html"));
+});
+
+app.use(express.static(path.join(__dirname, "public"), { extensions: ["html"] }));
+
+// =============================================================
+// MÁQUINAS (arquivo JSON em data/, fora de public/)
+// =============================================================
+const ARQUIVO_MAQUINAS = process.env.MAQUINAS_ARQUIVO || path.join(__dirname, "data", "maquinas.json");
+
+// Fila: leituras+gravações do JSON nunca se misturam (evita corrupção por escrita simultânea).
+let fila = Promise.resolve();
+function comExclusao(fn) {
+    const p = fila.then(fn, fn);
+    fila = p.catch(() => {});
+    return p;
+}
+
 function lerMaquinas() {
     try {
-        const data = fs.readFileSync("./public/maquinas.json", "utf8");
-        return JSON.parse(data);
+        return JSON.parse(fs.readFileSync(ARQUIVO_MAQUINAS, "utf8"));
     } catch (err) {
-        console.error("Erro ao ler maquinas.json:", err);
+        console.error("Erro ao ler maquinas.json:", err.message);
         return [];
     }
 }
 
-// =============================================================
-// 📡 SIMULADOR DE DADOS DO FINDER OPTA (TODAS AS MÁQUISAS)
-// =============================================================
+function gravarMaquinas(maquinas) {
+    const tmp = ARQUIVO_MAQUINAS + ".tmp";
+    fs.writeFileSync(tmp, JSON.stringify(maquinas, null, 4));
+    fs.renameSync(tmp, ARQUIVO_MAQUINAS); // troca atômica
+}
+
+// 📡 SIMULADOR DE DADOS DO FINDER OPTA (mantido como estava)
 function simularDadosContinuos() {
-    let maquinas = lerMaquinas();
+    return comExclusao(() => {
+        const maquinas = lerMaquinas();
+        if (maquinas.length === 0) return;
 
-    if (maquinas.length === 0) return;
-
-    // Percorre TODAS as máquinas da lista
-    maquinas.forEach((m, indice) => {
-        // Avalia se a máquina atual está LIGADA
-        const estaLigada = m.operacao === true && m.status && m.status.toLowerCase() === "ativa";
-
-        if (estaLigada) {
-            // Se está LIGADA: gera variações de leitura
-            m.temperatura = Math.floor(20 + Math.random() * 65); // 20°C a 85°C
-            m.eficiencia = Math.floor(70 + Math.random() * 30);  // 70% a 100%
-            m.alerta = m.temperatura >= 80;                      // Alerta se temp >= 80°C
-
-            // Grava histórico no MySQL individualmente para cada máquina ativa
-            const sql = `
-                INSERT INTO telemetria (maquina_id, temperatura, status, criado_em)
-                VALUES (?, ?, ?, NOW())
-            `;
-            db.query(sql, [m.id || (indice + 1), m.temperatura, m.alerta ? 'Alerta' : 'Operacional'], (err) => {
-                if (err && err.code !== 'ER_NO_SUCH_TABLE') {
-                    console.error("Erro no MySQL (telemetria):", err.message);
-                }
-            });
-        } else {
-            // Se está DESLIGADA: força e garante estado inativo em repouso
-            m.operacao = false;
-            m.status = "inativa";
-            m.temperatura = 20;
-            m.eficiencia = 0;
-            m.alerta = false;
-        }
-    });
-
-    // Guarda no ficheiro JSON uma única vez por ciclo (fora do forEach)
-    fs.writeFile("./public/maquinas.json", JSON.stringify(maquinas, null, 4), (err) => {
-        if (err) {
-            console.error("Erro ao atualizar maquinas.json pelo simulador:", err);
-            return;
-        }
-        console.log(`📡 [SIMULADOR] Ciclo concluído para todas as ${maquinas.length} máquinas.`);
-    });
-}
-
-// Inicia a simulação a cada 5 segundos (5000 ms)
-setInterval(simularDadosContinuos, 5000);
-
-// =============================================================
-// MIDDLEWARE DE CONTROLO DE ACESSO (RBAC)
-// =============================================================
-function permitirNiveis(...niveisPermitidos) {
-    return (req, res, next) => {
-        const emailReq = req.query.email || req.body.email;
-
-        if (!emailReq) {
-            return res.status(401).json({ erro: "Utilizador não identificado." });
-        }
-
-        const sql = "SELECT nivel FROM login WHERE email = ?";
-        db.query(sql, [emailReq], (err, result) => {
-            if (err || result.length === 0) {
-                return res.status(403).json({ erro: "Acesso negado. Utilizador não encontrado." });
-            }
-
-            const nivelUsuario = result[0].nivel;
-
-            if (niveisPermitidos.includes(nivelUsuario)) {
-                req.usuarioNivel = nivelUsuario;
-                next();
+        maquinas.forEach((m, indice) => {
+            const estaLigada = m.operacao === true && m.status && m.status.toLowerCase() === "ativa";
+            if (estaLigada) {
+                m.temperatura = Math.floor(20 + Math.random() * 65);
+                m.eficiencia = Math.floor(70 + Math.random() * 30);
+                m.alerta = m.temperatura >= 80;
+                db.query(
+                    "INSERT INTO telemetria (maquina_id, temperatura, status, criado_em) VALUES (?, ?, ?, NOW())",
+                    [m.id || (indice + 1), m.temperatura, m.alerta ? "Alerta" : "Operacional"],
+                    (err) => {
+                        if (err && err.code !== "ER_NO_SUCH_TABLE") console.error("Erro no MySQL (telemetria):", err.message);
+                    });
             } else {
-                res.status(403).json({
-                    erro: `Acesso negado. A sua conta (${nivelUsuario}) não tem permissão para esta ação.`
-                });
+                m.operacao = false;
+                m.status = "inativa";
+                m.temperatura = 20;
+                m.eficiencia = 0;
+                m.alerta = false;
             }
         });
-    };
+        gravarMaquinas(maquinas);
+    }).catch((e) => console.error("Erro no simulador:", e.message));
 }
 
-// =============================================================
-// ROTAS DA APLICAÇÃO
-// =============================================================
+const mesmaEmpresa = (m, nomeEmpresa) =>
+    m.empresa && String(m.empresa).trim().toLowerCase() === String(nomeEmpresa).trim().toLowerCase();
 
-// ROTA: Registar Utilizador
-app.post('/cadastrar', (req, res) => {
-    const { nome, empresa, email, senha, nivel } = req.body;
+// Buscar máquinas: somente as da empresa da SESSÃO
+app.get("/api/maquinas", exigirLogin, (req, res) => {
+    const vazio = { maquinas: [], total: 0, ativas: 0, operacao: 0, alertas: 0, mediaEficiencia: 0 };
+    if (!req.user.empresa_id || !req.user.empresa_nome) return res.json(vazio);
 
-    const sql = "INSERT INTO login (nome, empresa, email, senha, nivel) VALUES (?, ?, ?, ?, ?)";
-    db.query(sql, [nome, empresa, email, senha, nivel || 'operador'], (err, result) => {
-        if (err) {
-            console.error("Erro ao cadastrar:", err);
-            return res.status(500).send("Erro no servidor");
-        }
-        res.redirect('/login.html');
+    const maquinas = lerMaquinas().filter((m) => mesmaEmpresa(m, req.user.empresa_nome));
+    const total = maquinas.length;
+    let ativas = 0, operacao = 0, alertas = 0, eficienciaTotal = 0;
+    maquinas.forEach((m) => {
+        if (m.status === "ativa") ativas++;
+        if (m.operacao) operacao++;
+        if (m.status === "ativa" && (m.alerta || m.temperatura >= 80)) alertas++;
+        eficienciaTotal += m.eficiencia || 0;
     });
+    res.json({ maquinas, total, ativas, operacao, alertas,
+        mediaEficiencia: total > 0 ? Math.round(eficienciaTotal / total) : 0 });
 });
 
-// ROTA: Autenticação / Login
-app.post("/login", (req, res) => {
-    const { email, senha } = req.body;
+const texto = (v, max) => (typeof v === "string" ? v.trim().slice(0, max) : "");
 
-    const sql = `
-        SELECT * FROM login
-        WHERE email = ? AND senha = ?
-    `;
+// Cadastrar máquina (gerente/supervisor) ou alterar estado de uma existente (gerente/supervisor/técnico).
+// A empresa vem da sessão; só campos permitidos são aceitos.
+app.post("/api/maquinas", exigirLogin, exigirEmpresa, (req, res) => {
+    const dados = req.body;
+    const nome = texto(dados?.nome, 100);
+    if (!nome) return res.status(400).json({ erro: "Dados inválidos recebidos" });
 
-    db.query(sql, [email, senha], (erro, resultado) => {
-        if (erro) {
-            console.error("Erro no MySQL:", erro);
-            return res.send("Erro no login");
-        }
+    comExclusao(() => {
+        const maquinas = lerMaquinas();
+        const indice = maquinas.findIndex((m) => m.nome === nome && mesmaEmpresa(m, req.user.empresa_nome));
 
-        if (resultado.length > 0) {
-            const usuarioLogado = resultado[0];
-            res.redirect(`/dashboard?email=${encodeURIComponent(usuarioLogado.email)}`);
+        if (indice !== -1) {
+            if (!["gerente", "supervisor", "tecnico"].includes(req.user.nivel)) return { status: 403, corpo: { erro: "Você não tem permissão para esta ação." } };
+            const m = maquinas[indice];
+            if (typeof dados.status === "string") m.status = texto(dados.status, 20);
+            if (typeof dados.operacao === "boolean") m.operacao = dados.operacao;
+            if (Number.isFinite(dados.temperatura)) m.temperatura = dados.temperatura;
+            if (Number.isFinite(dados.eficiencia)) m.eficiencia = dados.eficiencia;
+            if (typeof dados.alerta === "boolean") m.alerta = dados.alerta;
         } else {
-            res.redirect("/login.html?erro=true");
-        }
-    });
-});
-
-// ROTA: Consultar Perfil do Utilizador
-app.get("/api/usuario", (req, res) => {
-    const emailReq = req.query.email;
-
-    if (!emailReq) {
-        return res.status(400).json({ erro: "E-mail do utilizador não fornecido" });
-    }
-
-    const sql = "SELECT nome, email, empresa, nivel FROM login WHERE email = ?";
-
-    db.query(sql, [emailReq], (erro, resultado) => {
-        if (erro) return res.status(500).json({ erro: "Erro no servidor" });
-        if (resultado.length > 0) {
-            res.json(resultado[0]);
-        } else {
-            res.status(404).json({ erro: "Utilizador não encontrado" });
-        }
-    });
-});
-
-// ROTA: Buscar Máquinas (Filtro Estrito por E-mail via MySQL)
-app.get("/api/maquinas", (req, res) => {
-    const emailReq = req.query.email;
-
-    // Se a requisição não enviar e-mail válido, retorna 0 máquinas (impede exibição global)
-    if (!emailReq || emailReq === "null" || emailReq === "undefined") {
-        return res.json({
-            maquinas: [], total: 0, ativas: 0, operacao: 0, alertas: 0, mediaEficiencia: 0
-        });
-    }
-
-    // Consulta no MySQL qual é a empresa cadastrada para ESTE e-mail
-    const sql = "SELECT empresa FROM login WHERE email = ?";
-    db.query(sql, [emailReq], (err, result) => {
-        if (err || result.length === 0 || !result[0].empresa) {
-            return res.json({
-                maquinas: [], total: 0, ativas: 0, operacao: 0, alertas: 0, mediaEficiencia: 0
+            if (!["gerente", "supervisor"].includes(req.user.nivel)) return { status: 403, corpo: { erro: "Você não tem permissão para esta ação." } };
+            maquinas.push({
+                nome,
+                empresa: req.user.empresa_nome,
+                modelo: texto(dados.modelo, 100),
+                numSerie: texto(dados.numSerie, 100),
+                dataCompra: texto(dados.dataCompra, 20),
+                tempoConsumo: texto(dados.tempoConsumo, 50),
+                status: texto(dados.status, 20) || "inativa",
+                operacao: dados.operacao === true,
+                temperatura: Number.isFinite(dados.temperatura) ? dados.temperatura : 20,
+                eficiencia: Number.isFinite(dados.eficiencia) ? dados.eficiencia : 0,
+                alerta: dados.alerta === true
             });
         }
-
-        const empresaUsuario = result[0].empresa.trim().toLowerCase();
-        const todasMaquinas = lerMaquinas();
-
-        // Filtra no JSON estritamente as máquinas pertencentes à empresa do utilizador
-        const maquinas = todasMaquinas.filter(m =>
-            m.empresa && m.empresa.trim().toLowerCase() === empresaUsuario
-        );
-
-        const total = maquinas.length;
-        let ativas = 0, operacao = 0, alertas = 0, eficienciaTotal = 0;
-
-        maquinas.forEach(m => {
-            if (m.status === "ativa") ativas++;
-            if (m.operacao) operacao++;
-            if (m.status === "ativa" && (m.alerta || m.temperatura >= 80)) alertas++;
-            eficienciaTotal += m.eficiencia || 0;
-        });
-
-        const mediaEficiencia = total > 0 ? Math.round(eficienciaTotal / total) : 0;
-
-        res.json({
-            maquinas,
-            total,
-            ativas,
-            operacao,
-            alertas,
-            mediaEficiencia
-        });
+        gravarMaquinas(maquinas);
+        return { status: 200, corpo: { sucesso: true, mensagem: "Dados da máquina salvos com sucesso!" } };
+    }).then(({ status, corpo }) => {
+        if (status === 403) auditar(pdb, { req, usuario: req.user, acao: "acesso_negado", entidade: "maquina", detalhes: { nivel: req.user.nivel } });
+        res.status(status).json(corpo);
+    }).catch((err) => {
+        console.error("Erro ao salvar maquinas.json:", err.message);
+        res.status(500).json({ erro: "Erro ao salvar no arquivo" });
     });
 });
 
-// ROTA: Cadastrar / Atualizar Máquina manualmente
-app.post("/api/maquinas", (req, res) => {
-    const novaLeitura = req.body;
+// =============================================================
+// LOGIN / SESSÃO
+// =============================================================
+const MAX_FALHAS_LOGIN = 5, JANELA_LOGIN = 15 * 60 * 1000;
 
-    if (!novaLeitura || !novaLeitura.nome) {
-        return res.status(400).json({ erro: "Dados inválidos recebidos" });
-    }
+app.post("/login", limite.limitar("login-ip", { max: 30, janelaMs: JANELA_LOGIN }), async (req, res) => {
+    const email = normalizarEmail(req.body?.email);
+    const senha = String(req.body?.senha ?? "");
+    const chave = `login-email:${email}`;
+    const falha = (codigo = "true") => res.redirect(`/login.html?erro=${codigo}`);
 
-    let maquinas = lerMaquinas();
-    const indice = maquinas.findIndex(m => m.nome === novaLeitura.nome);
-
-    if (indice !== -1) {
-        maquinas[indice] = { ...maquinas[indice], ...novaLeitura };
-    } else {
-        maquinas.push(novaLeitura);
-    }
-
-    fs.writeFile("./public/maquinas.json", JSON.stringify(maquinas, null, 4), (err) => {
-        if (err) {
-            console.error("Erro ao salvar no maquinas.json:", err);
-            return res.status(500).json({ erro: "Erro ao salvar no arquivo" });
+    try {
+        if (!email || !senha || senha.length > 128) return falha();
+        if (!limite.consumir(chave, { max: MAX_FALHAS_LOGIN + 1, janelaMs: JANELA_LOGIN }).permitido) {
+            await auditar(pdb, { req, acao: "login_bloqueado", entidade: "usuario" });
+            return falha("bloqueado");
         }
+        const [rows] = await pdb.query(
+            `SELECT u.id, u.empresa_id, u.nivel, u.status, u.senha_hash, e.ativa AS empresa_ativa
+               FROM usuarios u LEFT JOIN empresas e ON e.id = u.empresa_id WHERE u.email = ?`, [email]);
+        const u = rows[0];
+        if (!u) { await gastarTempo(senha); await auditar(pdb, { req, acao: "login_falha", entidade: "usuario" }); return falha(); }
 
-        console.log(`✅ [POST] Dados da '${novaLeitura.nome}' atualizados com sucesso!`);
-        res.json({
-            sucesso: true,
-            mensagem: "Dados da máquina salvos com sucesso!",
-            dados: novaLeitura
-        });
-    });
+        if (!(await verificarSenha(senha, u.senha_hash))) {
+            await auditar(pdb, { req, usuario: u, acao: "login_falha", entidade: "usuario", entidadeId: u.id });
+            return falha();
+        }
+        // Senha correta, mas o acesso depende do status.
+        if (u.status === "pendente") return falha("pendente");
+        if (u.status === "rejeitado") return falha("rejeitado");
+        if (u.status !== "ativo" || (u.empresa_id != null && !u.empresa_ativa)) return falha("inativo");
+
+        limite.zerar(chave);
+        await criarSessao(pdb, res, u.id);
+        await auditar(pdb, { req, usuario: u, acao: "login_ok", entidade: "usuario", entidadeId: u.id });
+        res.redirect("/dashboard");
+    } catch (e) {
+        console.error("Erro no login:", e);
+        res.redirect("/login.html?erro=servidor");
+    }
 });
 
-function permitirNiveis(...niveisPermitidos) {
-    return (req, res, next) => {
-        const emailReq = req.query.email || req.body.email;
+app.post("/api/logout", async (req, res) => {
+    try { await encerrarSessao(pdb, req, res); } catch (e) { console.error(e); }
+    res.json({ ok: true });
+});
 
-        if (!emailReq) {
-            return res.status(401).json({ erro: "Utilizador não identificado." });
-        }
+// Perfil do usuário da sessão (sem CPF, sem nascimento)
+app.get("/api/me", exigirLogin, (req, res) => {
+    const { nome, email, empresa_nome, nivel } = req.user;
+    res.json({ nome, email, empresa: empresa_nome || "", nivel });
+});
 
-        const sql = "SELECT nivel FROM login WHERE email = ?";
-        db.query(sql, [emailReq], (err, result) => {
-            if (err || result.length === 0) {
-                return res.status(403).json({ erro: "Acesso negado. Utilizador não encontrado." });
-            }
+app.use(rotasConvites(pdb, guardas));
+app.use(rotasSolicitacoes(pdb, guardas));
+app.use(rotasAdmin(pdb, guardas));
 
-            // Converte ambos para minúsculas antes de comparar
-            const nivelUsuario = (result[0].nivel || "").toLowerCase();
-            const niveisPermitidosMin = niveisPermitidos.map(n => n.toLowerCase());
-
-            if (niveisPermitidosMin.includes(nivelUsuario)) {
-                req.usuarioNivel = nivelUsuario;
-                next();
-            } else {
-                res.status(403).json({
-                    erro: `Acesso negado. A sua conta (${nivelUsuario}) não tem permissão para esta ação.`
-                });
-            }
-        });
-    };
+// =============================================================
+// INICIALIZAÇÃO (só quando executado diretamente; os testes importam o `app`)
+// =============================================================
+function iniciar() {
+    setInterval(simularDadosContinuos, 5000);
+    setInterval(() => {
+        rotasConvites.expirarConvites(pdb).catch((e) => console.error("Erro ao expirar convites:", e.message));
+        pdb.query("DELETE FROM sessoes WHERE expira_em <= UTC_TIMESTAMP()").catch(() => {});
+        limite.limparExpirados();
+    }, 60 * 1000);
+    const PORT = process.env.PORT || 3000;
+    app.listen(PORT, () => console.log(`Servidor a correr na porta ${PORT}`));
 }
 
-// Inicialização do Servidor
-app.listen(3000, () => {
-    console.log("Servidor rodando! http://localhost:3000/");
-});
+if (require.main === module) iniciar();
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-    console.log(`Servidor a correr na porta ${PORT}`);
-});
+module.exports = { app, simularDadosContinuos };

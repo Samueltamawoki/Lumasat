@@ -4,6 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="referrer" content="no-referrer">
   <link rel="stylesheet" href="cadastrar.css">
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
   <title>LumaSat — Criar Conta</title>
@@ -13,11 +14,10 @@
 
   <div class="card">
 
-    <!-- NOVO BOTÃO: Voltar para o Dashboard -->
     <div class="top-actions">
-      <a href="dashboard.html" id="btnVoltarDashboard" class="btn-voltar">
+      <a href="login.html" class="btn-voltar">
         <i data-lucide="arrow-left" width="16" height="16"></i>
-        Voltar ao Dashboard
+        Voltar ao login
       </a>
     </div>
 
@@ -26,114 +26,230 @@
     </div>
 
     <h2>Criar Conta</h2>
-    <p class="page-desc">Cadastre-se no LumaSat</p>
+    <p class="page-desc" id="descricao">Cadastro somente por convite</p>
 
-    <form action="/cadastrar" method="POST">
+    <div id="alerta" class="alerta-form" style="display: none;" role="alert"></div>
+
+    <!-- PASSO 1: código do convite -->
+    <form id="formCodigo" novalidate>
+      <div class="field">
+        <label class="field-label" for="codigo">Código do convite</label>
+        <div class="input-wrapper">
+          <span class="input-icon"><i data-lucide="key" width="16" height="16"></i></span>
+          <input type="text" id="codigo" autocomplete="off" spellcheck="false" placeholder="Cole o código recebido por e-mail" required>
+        </div>
+        <span class="field-hint">Enviamos o código e um link para o seu e-mail.</span>
+      </div>
+      <button type="submit" id="btnValidar">Validar convite</button>
+    </form>
+
+    <!-- PASSO 2: formulário (só aparece com convite válido) -->
+    <form id="formCadastro" style="display: none;" novalidate>
+
+      <div class="field">
+        <label class="field-label" for="empresa">Empresa</label>
+        <div class="input-wrapper">
+          <span class="input-icon"><i data-lucide="building" width="16" height="16"></i></span>
+          <input type="text" id="empresa" class="input-bloqueado" readonly tabindex="-1">
+        </div>
+        <span class="field-hint">Definida pelo convite. O cargo será definido pelo gerente na aprovação.</span>
+      </div>
 
       <div class="field">
         <label class="field-label" for="nomeCompleto">Nome Completo</label>
         <div class="input-wrapper">
           <span class="input-icon"><i data-lucide="user" width="16" height="16"></i></span>
-          <input type="text" id="nomeCompleto" name="nome" placeholder="Digite o seu nome" required>
+          <input type="text" id="nomeCompleto" name="nome" autocomplete="name" placeholder="Digite o seu nome completo" required>
         </div>
+        <span class="field-erro" data-erro="nome"></span>
       </div>
 
       <div class="field">
-        <label class="field-label" for="empresa">Nome da Empresa</label>
+        <label class="field-label" for="cpf">CPF</label>
         <div class="input-wrapper">
-          <span class="input-icon"><i data-lucide="building" width="16" height="16"></i></span>
-          <input type="text" id="empresa" name="empresa" placeholder="Ex: Empresa Alfa" required>
+          <span class="input-icon"><i data-lucide="id-card" width="16" height="16"></i></span>
+          <input type="text" id="cpf" name="cpf" inputmode="numeric" maxlength="14" placeholder="000.000.000-00" required>
         </div>
-        <span id="empresaHint" class="field-hint" style="display: none;">Empresa vinculada automaticamente ao seu
-          perfil</span>
+        <span class="field-erro" data-erro="cpf"></span>
       </div>
 
       <div class="field">
-        <label class="field-label" for="nivel">Nível de Acesso</label>
+        <label class="field-label" for="nascimento">Data de nascimento</label>
         <div class="input-wrapper">
-          <span class="input-icon"><i data-lucide="shield" width="16" height="16"></i></span>
-          <select id="nivel" name="nivel" required>
-            <option value="" disabled selected hidden>Selecione o nível de acesso</option>
-            <option value="operador">Operador</option>
-            <option value="técnico">Técnico</option>
-            <option value="Supervisor">Supervisor</option>
-          </select>
+          <span class="input-icon"><i data-lucide="calendar" width="16" height="16"></i></span>
+          <input type="date" id="nascimento" name="nascimento" autocomplete="bday" required>
         </div>
+        <span class="field-erro" data-erro="nascimento"></span>
       </div>
 
       <div class="field">
         <label class="field-label" for="email">E-mail</label>
         <div class="input-wrapper">
           <span class="input-icon"><i data-lucide="mail" width="16" height="16"></i></span>
-          <input type="email" id="email" name="email" placeholder="seu@email.com" required>
+          <input type="email" id="email" name="email" class="input-bloqueado" readonly>
         </div>
+        <span class="field-hint">Deve ser o e-mail que recebeu o convite.</span>
+        <span class="field-erro" data-erro="email"></span>
+      </div>
+
+      <div class="field">
+        <label class="field-label" for="telefone">Telefone</label>
+        <div class="input-wrapper">
+          <span class="input-icon"><i data-lucide="phone" width="16" height="16"></i></span>
+          <input type="tel" id="telefone" name="telefone" autocomplete="tel-national" inputmode="numeric" maxlength="15" placeholder="(00) 00000-0000" required>
+        </div>
+        <span class="field-erro" data-erro="telefone"></span>
       </div>
 
       <div class="field">
         <label class="field-label" for="senha">Senha</label>
         <div class="input-wrapper">
           <span class="input-icon"><i data-lucide="lock" width="16" height="16"></i></span>
-          <input type="password" id="senha" name="senha" placeholder="••••••••" required minlength="6">
+          <input type="password" id="senha" name="senha" autocomplete="new-password" placeholder="••••••••" required maxlength="128">
         </div>
-        <span class="field-hint">Mínimo de 6 caracteres</span>
+        <ul class="req-senha" id="reqSenha">
+          <li data-req="tam">Mínimo de 8 caracteres</li>
+          <li data-req="min">Uma letra minúscula</li>
+          <li data-req="mai">Uma letra maiúscula</li>
+          <li data-req="num">Um número</li>
+        </ul>
+        <span class="field-erro" data-erro="senha"></span>
       </div>
 
       <div class="field">
         <label class="field-label" for="confirmarSenha">Confirmar Senha</label>
         <div class="input-wrapper">
           <span class="input-icon"><i data-lucide="lock" width="16" height="16"></i></span>
-          <input type="password" id="confirmarSenha" name="confirmarSenha" placeholder="••••••••" required>
+          <input type="password" id="confirmarSenha" name="confirmarSenha" autocomplete="new-password" placeholder="••••••••" required maxlength="128">
         </div>
+        <span class="field-erro" data-erro="confirmarSenha"></span>
       </div>
 
-      <button type="submit">Criar Conta</button>
-
+      <button type="submit" id="btnCadastrar">Criar Conta</button>
     </form>
+
+    <!-- PASSO 3: concluído -->
+    <div id="sucesso" style="display: none; text-align: center;">
+      <h3 style="margin: 8px 0;">Cadastro enviado, aguardando aprovação</h3>
+      <p class="page-desc">O gerente da sua empresa vai analisar o pedido. Você receberá um e-mail com a decisão. Até lá, o acesso à plataforma fica bloqueado.</p>
+      <p style="margin-top: 16px;"><a href="login.html" class="btn-voltar">Ir para o login</a></p>
+    </div>
 
   </div>
 
   <script>
     lucide.createIcons();
 
-    document.addEventListener("DOMContentLoaded", async () => {
-      const inputEmpresa = document.getElementById("empresa");
-      const empresaHint = document.getElementById("empresaHint");
-      const btnVoltar = document.getElementById("btnVoltarDashboard");
+    const $ = (id) => document.getElementById(id);
+    let codigoValido = null;
 
-      // 1. Obtém o e-mail pela URL (?email=...) ou pelo localStorage
-      const params = new URLSearchParams(window.location.search);
-      const usuarioSalvo = JSON.parse(localStorage.getItem("usuario")) || {};
-      const email = params.get("email") || usuarioSalvo.email;
+    function alerta(msg) {
+      const a = $("alerta");
+      a.textContent = msg || "";
+      a.style.display = msg ? "block" : "none";
+    }
+    function limparErros() {
+      document.querySelectorAll("[data-erro]").forEach((s) => (s.textContent = ""));
+      document.querySelectorAll(".input-wrapper input.invalido").forEach((i) => i.classList.remove("invalido"));
+    }
+    function mostrarErros(campos) {
+      const mapa = { nome: "nomeCompleto", nascimento: "nascimento" };
+      Object.entries(campos || {}).forEach(([k, msg]) => {
+        const s = document.querySelector(`[data-erro="${k}"]`);
+        if (s) s.textContent = msg;
+        const i = $(mapa[k] || k);
+        if (i) i.classList.add("invalido");
+      });
+    }
 
-      if (!email) return;
-
-      // 2. Mantém o ?email= no botão "Voltar ao Dashboard" para não perderes a sessão
-      if (btnVoltar) {
-        btnVoltar.href = `/dashboard?email=${encodeURIComponent(email)}`;
-      }
-
-      try {
-        // 3. Consulta a rota /api/usuario?email=... que já existe no teu server.js
-        const resposta = await fetch(`/api/usuario?email=${encodeURIComponent(email)}`);
-        if (!resposta.ok) return;
-
-        const usuarioLogado = await resposta.json();
-        localStorage.setItem("usuario", JSON.stringify(usuarioLogado));
-
-        // 4. Verifica se é o utilizador Master (nivel = 'master' na tabela login)
-        const isMaster = (usuarioLogado.nivel || "").trim().toLowerCase() === "master";
-
-        // Se NÃO for Master e tiver empresa associada, preenche e bloqueia o campo
-        if (!isMaster && usuarioLogado.empresa) {
-          inputEmpresa.value = usuarioLogado.empresa;
-          inputEmpresa.readOnly = true;
-          inputEmpresa.classList.add("input-bloqueado");
-          if (empresaHint) empresaHint.style.display = "block";
-        }
-      } catch (erro) {
-        console.error("Erro ao carregar dados da empresa:", erro);
-      }
+    // Máscaras (só conveniência; o servidor valida tudo de novo)
+    $("cpf").addEventListener("input", (e) => {
+      const d = e.target.value.replace(/\D/g, "").slice(0, 11);
+      e.target.value = d.replace(/(\d{3})(\d)/, "$1.$2").replace(/(\d{3})(\d)/, "$1.$2").replace(/(\d{3})(\d{1,2})$/, "$1-$2");
     });
+    $("telefone").addEventListener("input", (e) => {
+      const d = e.target.value.replace(/\D/g, "").slice(0, 11);
+      let t = d;
+      if (d.length > 10) t = d.replace(/(\d{2})(\d{5})(\d{4})/, "($1) $2-$3");
+      else if (d.length > 6) t = d.replace(/(\d{2})(\d{4})(\d{0,4})/, "($1) $2-$3");
+      else if (d.length > 2) t = d.replace(/(\d{2})(\d{0,5})/, "($1) $2");
+      e.target.value = t;
+    });
+    $("senha").addEventListener("input", (e) => {
+      const s = e.target.value;
+      const ok = { tam: s.length >= 8, min: /[a-z]/.test(s), mai: /[A-Z]/.test(s), num: /\d/.test(s) };
+      document.querySelectorAll("#reqSenha li").forEach((li) => li.classList.toggle("ok", ok[li.dataset.req]));
+    });
+
+    async function api(rota, corpo) {
+      const r = await fetch(rota, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(corpo) });
+      let dados = {};
+      try { dados = await r.json(); } catch {}
+      return { ok: r.ok, status: r.status, dados };
+    }
+
+    async function validarConvite(codigo) {
+      alerta("");
+      $("btnValidar").disabled = true;
+      try {
+        const { ok, dados } = await api("/api/convites/validar", { codigo });
+        if (!ok) { alerta(dados.erro || "Convite inválido."); return; }
+        codigoValido = codigo;
+        $("empresa").value = dados.empresa;
+        $("email").value = dados.email;
+        $("formCodigo").style.display = "none";
+        $("formCadastro").style.display = "";
+        $("descricao").textContent = "Complete seus dados para entrar em " + dados.empresa;
+      } catch { alerta("Não foi possível validar o convite. Tente novamente."); }
+      finally { $("btnValidar").disabled = false; }
+    }
+
+    $("formCodigo").addEventListener("submit", (e) => {
+      e.preventDefault();
+      const c = $("codigo").value.trim();
+      if (!c) { alerta("Informe o código do convite."); return; }
+      validarConvite(c);
+    });
+
+    $("formCadastro").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      limparErros(); alerta("");
+      const campos = {};
+      const vazios = { nome: "nomeCompleto", cpf: "cpf", nascimento: "nascimento", telefone: "telefone", senha: "senha", confirmarSenha: "confirmarSenha" };
+      Object.entries(vazios).forEach(([k, id]) => { if (!$(id).value.trim()) campos[k] = "Campo obrigatório."; });
+      if ($("senha").value && $("senha").value !== $("confirmarSenha").value) campos.confirmarSenha = "A confirmação não confere com a senha.";
+      if (Object.keys(campos).length) { mostrarErros(campos); return; }
+
+      $("btnCadastrar").disabled = true;
+      try {
+        // Só dados pessoais + código. Empresa e cargo NÃO são enviados: o servidor decide.
+        const { ok, status, dados } = await api("/cadastrar", {
+          codigo: codigoValido,
+          nome: $("nomeCompleto").value, cpf: $("cpf").value, nascimento: $("nascimento").value,
+          email: $("email").value, telefone: $("telefone").value,
+          senha: $("senha").value, confirmarSenha: $("confirmarSenha").value
+        });
+        if (ok) {
+          $("formCadastro").style.display = "none";
+          $("sucesso").style.display = "block";
+          $("descricao").textContent = "";
+          return;
+        }
+        if (status === 422) { mostrarErros(dados.campos); alerta(dados.erro); return; }
+        alerta(dados.erro || "Não foi possível concluir o cadastro.");
+      } catch { alerta("Erro de conexão. Tente novamente."); }
+      finally { $("btnCadastrar").disabled = false; }
+    });
+
+    // Link do e-mail: https://.../cadastrar.html#convite=CODIGO. O código sai da URL logo ao ler.
+    (function () {
+      const m = /[#&]convite=([A-Za-z0-9_-]+)/.exec(location.hash);
+      if (m) {
+        history.replaceState(null, "", location.pathname);
+        $("codigo").value = m[1];
+        validarConvite(m[1]);
+      }
+    })();
   </script>
 </body>
 

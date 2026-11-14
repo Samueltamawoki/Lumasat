@@ -55,8 +55,12 @@
           <!-- Links / Opções adicionais -->
           <nav class="sidebar-links">
             <a href="#"><i class="fa-solid fa-user-gear"></i> Editar Perfil</a>
-            <a href="cadastrar.html" id="linkAddIntegrantes" style="display: none;">
+            <a href="#" id="linkAddIntegrantes" style="display: none;">
               <i class="fa-solid fa-user-plus"></i> Adicionar Integrantes
+            </a>
+            <a href="#" id="linkSolicitacoes" style="display: none;">
+              <i class="fa-solid fa-user-check"></i> Solicitações de cadastro
+              <span id="badgePendentes" class="badge-contador" style="display: none;">0</span>
             </a>
 
             <a href="#"><i class="fa-solid fa-bell"></i> Notificações</a>
@@ -108,7 +112,7 @@
         </div>
       </div>
 
-      <div class="metric-card <?= $alertas > 0 ? 'alert-warning' : '' ?>">
+      <div class="metric-card" id="metricCardAlertas">
         <div class="card-left">
           <span class="card-label">Alertas ativos</span>
           <div class="card-number" id="cardAlertas">0</div>
@@ -248,37 +252,140 @@
   </dialog>
 
 
+  <!-- ========== POPUP: CONVITES (somente gerente) ========== -->
+  <dialog id="popupConvites" class="popup-gestao">
+    <div class="popup-header">
+      <h2>Adicionar integrantes</h2>
+      <p>Envie um convite por e-mail. O funcionário se cadastra e você aprova o acesso.</p>
+    </div>
+    <form id="formConvite" novalidate>
+      <div class="form-group">
+        <label for="emailConvite">E-mail do funcionário</label>
+        <input type="email" id="emailConvite" placeholder="funcionario@empresa.com" required />
+      </div>
+      <p id="msgConvite" class="msg-popup" style="display: none;"></p>
+      <div class="popup-actions">
+        <button type="button" class="btn-secondary"
+          onclick="document.getElementById('popupConvites').close()">Fechar</button>
+        <button type="submit" class="btn-primary-modal" id="btnEnviarConvite">Enviar convite</button>
+      </div>
+    </form>
+    <div class="table-responsive" style="margin-top: 18px;">
+      <table class="machines-table">
+        <thead>
+          <tr>
+            <th>E-mail</th>
+            <th>Status</th>
+            <th>Expira em</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="listaConvites"></tbody>
+      </table>
+    </div>
+  </dialog>
+
+  <!-- ========== POPUP: SOLICITAÇÕES DE CADASTRO (somente gerente) ========== -->
+  <dialog id="popupSolicitacoes" class="popup-gestao">
+    <div class="popup-header">
+      <h2>Solicitações de cadastro</h2>
+      <p>Analise, aprove ou rejeite os cadastros da sua empresa.</p>
+    </div>
+
+    <div class="tabs-gestao">
+      <button type="button" id="abaPendentes" class="ativa" onclick="mostrarAba('pendentes')">Pendentes</button>
+      <button type="button" id="abaHistorico" onclick="mostrarAba('historico')">Histórico</button>
+    </div>
+    <p id="msgSolic" class="msg-popup" style="display: none;"></p>
+
+    <div id="painelPendentes" class="table-responsive">
+      <table class="machines-table">
+        <thead>
+          <tr>
+            <th>Nome</th>
+            <th>E-mail</th>
+            <th>CPF</th>
+            <th>Pedido em</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="listaPendentes"></tbody>
+      </table>
+    </div>
+
+    <div id="painelHistorico" class="table-responsive" style="display: none;">
+      <table class="machines-table">
+        <thead>
+          <tr>
+            <th>Candidato</th>
+            <th>Decisão</th>
+            <th>Cargo</th>
+            <th>Gerente</th>
+            <th>Data</th>
+            <th>Motivo</th>
+          </tr>
+        </thead>
+        <tbody id="listaHistorico"></tbody>
+      </table>
+      <div class="popup-actions"><button type="button" class="btn-secondary" id="btnMaisHistorico"
+          style="display: none;">Carregar mais</button></div>
+    </div>
+
+    <!-- Detalhe do candidato / decisão -->
+    <div id="painelDetalhe" style="display: none;">
+      <div class="status-box" id="dadosCandidato"></div>
+      <div class="form-group" style="margin-top: 14px;">
+        <label for="cargoAprovacao">Cargo (obrigatório para aprovar)</label>
+        <select id="cargoAprovacao">
+          <option value="" disabled selected>Selecione o cargo</option>
+          <option value="supervisor">Supervisor</option>
+          <option value="tecnico">Técnico</option>
+          <option value="operador">Operador</option>
+        </select>
+      </div>
+      <div class="form-group" style="margin-top: 10px;">
+        <label for="motivoRejeicao">Motivo (obrigatório para rejeitar; será enviado ao candidato)</label>
+        <textarea id="motivoRejeicao" rows="3" maxlength="500" placeholder="Explique o motivo da rejeição"></textarea>
+      </div>
+      <div class="popup-actions">
+        <button type="button" class="btn-secondary" onclick="voltarLista()">Voltar</button>
+        <button type="button" class="btn-secondary btn-rejeitar" id="btnRejeitar">Rejeitar</button>
+        <button type="button" class="btn-primary-modal" id="btnAprovar">Aprovar</button>
+      </div>
+    </div>
+
+    <div class="popup-actions" id="rodapeSolic">
+      <button type="button" class="btn-secondary"
+        onclick="document.getElementById('popupSolicitacoes').close()">Fechar</button>
+    </div>
+  </dialog>
 
   <script>
-    // 1. Identificação Rígida pela URL da Aba Atual
-    function obterEmailURL() {
-      const urlParams = new URLSearchParams(window.location.search);
-      let email = urlParams.get("email");
-      if (email) {
-        sessionStorage.setItem("usuarioEmailLogado", email);
-        return email;
-      }
-      return sessionStorage.getItem("usuarioEmailLogado");
-    }
+    // 1. A identidade vem da sessão do servidor (cookie httpOnly), nunca da URL
+    const esc = (v) => String(v ?? "").replace(/[&<>"']/g,
+      (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
-    const emailLogado = obterEmailURL();
-    let empresaUsuarioLogado = "";
+    // Chamada à API: sessão expirada (401) volta para o login
+    async function apiFetch(url, opts = {}) {
+      const r = await fetch(url, { ...opts, headers: { "Content-Type": "application/json", ...(opts.headers || {}) } });
+      if (r.status === 401) { window.location.href = "login.html"; throw new Error("sessão expirada"); }
+      let dados = {};
+      try { dados = await r.json(); } catch { }
+      return { ok: r.ok, status: r.status, dados };
+    }
+    const dataBR = (d) => d ? new Date(d).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", dateStyle: "short", timeStyle: "short" }) : "";
+    const nascBR = (d) => { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(d || "")); return m ? `${m[3]}/${m[2]}/${m[1]}` : ""; };
+    const fmtTel = (t) => { const d = String(t || ""); return d.length === 11 ? `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}` : d.length === 10 ? `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}` : d; };
+    const fmtCpf = (c) => String(c || "").replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/, "$1.$2.$3-$4");
+
+    let nivelUsuario = "";
     let maquinaSelecionada = null;
 
     // 2. Carrega Perfil e Permissões do Utilizador
     async function carregarPerfil() {
       try {
-        if (!emailLogado) return;
-
-        const resposta = await fetch(`/api/usuario?email=${encodeURIComponent(emailLogado)}`);
-        if (!resposta.ok) return;
-
-        const usuario = await resposta.json();
-        localStorage.setItem("usuario", JSON.stringify(usuario));
-
-        if (usuario.empresa) {
-          empresaUsuarioLogado = usuario.empresa;
-        }
+        const { ok, dados: usuario } = await apiFetch("/api/me");
+        if (!ok) return;
 
         // Atualiza cabeçalho e sidebar
         const elTopUser = document.getElementById('topBarUser');
@@ -291,35 +398,27 @@
           el.textContent = usuario.nome || "Usuário";
         });
 
-        // Controlo de Permissões (RBAC)
-        localStorage.setItem("usuario", JSON.stringify(usuario));
+        // Os botões abaixo são só conveniência visual; quem decide de verdade é o servidor.
+        nivelUsuario = (usuario.nivel || "").trim().toLowerCase();
+        const eGerente = nivelUsuario === "gerente";
+        const eSupervisor = nivelUsuario === "supervisor";
+        const eTecnico = nivelUsuario === "tecnico";
 
-        // Controlo de Permissões (RBAC)
-        const nivel = (usuario.nivel || "").trim().toLowerCase();
-        const eTecnico = nivel === "técnico" || nivel === "tecnico";
-        const eSupervisor = nivel === "supervisor";
-        const eMaster = nivel === "master";
-
-        if (eTecnico || eSupervisor || eMaster) {
+        if (eGerente || eSupervisor || eTecnico) {
           document.querySelectorAll(".apenas-tecnico-supervisor")
             .forEach(el => el.style.setProperty("display", "block", "important"));
         }
 
-        if (eSupervisor || eMaster) {
+        if (eGerente || eSupervisor) {
           document.querySelectorAll(".apenas-supervisor")
             .forEach(el => el.style.setProperty("display", "inline-flex", "important"));
         }
 
-        // Esconde ou mostra "Adicionar Integrantes" com !important
-        const linkAddIntegrantes = document.getElementById("linkAddIntegrantes");
-        if (linkAddIntegrantes) {
-          if (eSupervisor || eMaster) {
-            linkAddIntegrantes.href = `cadastrar.html?email=${encodeURIComponent(usuario.email)}`;
-            linkAddIntegrantes.style.setProperty("display", "flex", "important");
-          } else {
-            linkAddIntegrantes.style.setProperty("display", "none", "important");
-          }
-        }
+        ["linkAddIntegrantes", "linkSolicitacoes"].forEach((id) => {
+          const el = document.getElementById(id);
+          if (el) el.style.setProperty("display", eGerente ? "flex" : "none", "important");
+        });
+        if (eGerente) atualizarBadgePendentes();
 
       } catch (erro) {
         console.error('Erro ao carregar perfil:', erro);
@@ -329,17 +428,9 @@
     // 3. Carrega Dashboard (Solicita SEMPRE com o e-mail da URL)
     async function carregarDashboard() {
       try {
-        // Extrai o e-mail diretamente da URL da aba/janela atual (?email=xxx)
-        const urlParams = new URLSearchParams(window.location.search);
-        const emailAtual = urlParams.get("email") || sessionStorage.getItem("usuarioEmailLogado");
-
-        if (!emailAtual) return;
-
-        // Faz o pedido à API passando SEMPRE o e-mail único desta janela
-        const resposta = await fetch(`/api/maquinas?email=${encodeURIComponent(emailAtual)}`);
-        if (!resposta.ok) return;
-
-        const dados = await resposta.json();
+        // A API usa a empresa da sessão; nada é enviado pela URL
+        const { ok, dados } = await apiFetch("/api/maquinas");
+        if (!ok) return;
 
         // Preenche os Cartões
         const elAtivas = document.getElementById("cardAtivas");
@@ -352,10 +443,13 @@
         if (elOp) elOp.innerText = dados.operacao;
 
         const elAlert = document.getElementById("cardAlertas");
+        const cardAlertBox = document.getElementById("metricCardAlertas");
         if (elAlert) {
           elAlert.innerText = dados.alertas;
-          if (dados.alertas > 0) elAlert.style.color = "#dc2626";
-          else elAlert.style.color = "";
+          elAlert.style.color = dados.alertas > 0 ? "#dc2626" : "";
+        }
+        if (cardAlertBox) {
+          cardAlertBox.classList.toggle("alert-warning", dados.alertas > 0);
         }
 
         // Preenche a Tabela
@@ -376,10 +470,10 @@
           else if (m.temperatura >= 80) tempClass = "temp-high";
 
           const linha = `
-        <tr class="machine-row" style="cursor: pointer;" onclick="abrirPopupMaquina('${m.nome}', '${m.status}')">
+        <tr class="machine-row" style="cursor: pointer;" data-nome="${esc(m.nome)}" data-status="${esc(m.status)}">
             <td style="font-weight: 600;">
                 <i class="fa-solid fa-microchip" style="color: #1a237e; margin-right: 8px;"></i>
-                ${m.nome}
+                ${esc(m.nome)}
             </td>
             <td>
                 <span class="status-badge ${statusClass}">
@@ -408,6 +502,9 @@
         </tr>
       `;
           tabela.innerHTML += linha;
+        });
+        tabela.querySelectorAll(".machine-row").forEach((tr) => {
+          tr.addEventListener("click", () => abrirPopupMaquina(tr.dataset.nome, tr.dataset.status));
         });
 
       } catch (erro) {
@@ -487,6 +584,7 @@
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(dadosAtualizacao)
         });
+        if (resposta.status === 401) { window.location.href = "login.html"; return; }
 
         if (resposta.ok) {
           document.getElementById("popupStatusMaquina").close();
@@ -509,8 +607,9 @@
 
       const btnExit = document.getElementById("bntLogout");
       if (btnExit) {
-        btnExit.addEventListener("click", function (e) {
+        btnExit.addEventListener("click", async function (e) {
           e.preventDefault();
+          try { await fetch("/api/logout", { method: "POST" }); } catch { }
           sessionStorage.clear();
           localStorage.clear();
           window.location.href = "login.html";
@@ -539,7 +638,6 @@
             numSerie: document.getElementById("numSerie").value,
             dataCompra: document.getElementById("data").value,
             tempoConsumo: document.getElementById("tempConsumo").value,
-            empresa: empresaUsuarioLogado,
             status: "inativa",
             eficiencia: 0,
             temperatura: 20,
@@ -567,6 +665,156 @@
           }
         });
       }
+    });
+
+    // ============ GESTÃO DO GERENTE: convites e solicitações ============
+    const ROTULO_STATUS = { PENDENTE: "Pendente", UTILIZADO: "Utilizado", EXPIRADO: "Expirado", CANCELADO: "Cancelado", APROVADA: "Aprovada", REJEITADA: "Rejeitada" };
+    const CLASSE_STATUS = { PENDENTE: "status-pending", UTILIZADO: "status-active", EXPIRADO: "status-off", CANCELADO: "status-off", APROVADA: "status-active", REJEITADA: "status-rejected" };
+    const badge = (st) => `<span class="status-badge ${CLASSE_STATUS[st] || "status-off"}">${esc(ROTULO_STATUS[st] || st)}</span>`;
+    function mensagem(id, texto, erro) {
+      const el = document.getElementById(id);
+      el.textContent = texto || "";
+      el.style.display = texto ? "block" : "none";
+      el.classList.toggle("erro", !!erro);
+    }
+
+    // --- Convites ---
+    async function carregarConvites() {
+      const { ok, dados } = await apiFetch("/api/convites");
+      const tb = document.getElementById("listaConvites");
+      if (!ok) { tb.innerHTML = ""; return; }
+      tb.innerHTML = dados.length ? "" : '<tr><td colspan="4">Nenhum convite enviado.</td></tr>';
+      dados.forEach((c) => {
+        const acoes = c.status === "PENDENTE"
+          ? `<button type="button" class="btn-secondary btn-mini" data-acao="reenviar" data-id="${c.id}" data-email="${esc(c.email)}">Reenviar</button>
+             <button type="button" class="btn-secondary btn-mini btn-rejeitar" data-acao="cancelar" data-id="${c.id}">Cancelar</button>` : "";
+        tb.insertAdjacentHTML("beforeend", `<tr><td>${esc(c.email)}</td><td>${badge(c.status)}</td><td>${esc(dataBR(c.expira_em))}</td><td>${acoes}</td></tr>`);
+      });
+    }
+
+    async function enviarConvite(email) {
+      mensagem("msgConvite", "");
+      const { ok, dados } = await apiFetch("/api/convites", { method: "POST", body: JSON.stringify({ email }) });
+      if (ok) mensagem("msgConvite", "Convite enviado para " + email + ".", false);
+      else mensagem("msgConvite", dados.erro || "Não foi possível enviar o convite.", true);
+      await carregarConvites();
+      return ok;
+    }
+
+    // --- Solicitações ---
+    let solicitacaoAtual = null, paginaHistorico = 1;
+
+    async function atualizarBadgePendentes() {
+      try {
+        const { ok, dados } = await apiFetch("/api/solicitacoes?status=PENDENTE");
+        const b = document.getElementById("badgePendentes");
+        if (ok && b) { b.textContent = dados.length; b.style.display = dados.length ? "inline-block" : "none"; }
+      } catch { }
+    }
+
+    async function carregarPendentes() {
+      const { ok, dados } = await apiFetch("/api/solicitacoes?status=PENDENTE");
+      const tb = document.getElementById("listaPendentes");
+      if (!ok) { tb.innerHTML = ""; return; }
+      tb.innerHTML = dados.length ? "" : '<tr><td colspan="5">Nenhuma solicitação pendente.</td></tr>';
+      dados.forEach((s) => tb.insertAdjacentHTML("beforeend",
+        `<tr><td>${esc(s.nome)}</td><td>${esc(s.email)}</td><td>${esc(s.cpf_mascarado)}</td><td>${esc(dataBR(s.criado_em))}</td>
+         <td><button type="button" class="btn-secondary btn-mini" data-analisar="${s.id}">Analisar</button></td></tr>`));
+      const b = document.getElementById("badgePendentes");
+      if (b) { b.textContent = dados.length; b.style.display = dados.length ? "inline-block" : "none"; }
+    }
+
+    async function carregarHistorico(reiniciar) {
+      if (reiniciar) { paginaHistorico = 1; document.getElementById("listaHistorico").innerHTML = ""; }
+      const { ok, dados } = await apiFetch("/api/solicitacoes/historico?pagina=" + paginaHistorico);
+      if (!ok) return;
+      const tb = document.getElementById("listaHistorico");
+      if (reiniciar && !dados.itens.length) tb.innerHTML = '<tr><td colspan="6">Nenhuma decisão registrada.</td></tr>';
+      dados.itens.forEach((h) => tb.insertAdjacentHTML("beforeend",
+        `<tr><td>${esc(h.nome)}<br><small>${esc(h.email)}</small></td><td>${badge(h.status)}</td><td>${esc(h.cargo_atribuido || "-")}</td>
+         <td>${esc(h.decidido_por_nome || "-")}</td><td>${esc(dataBR(h.decidido_em))}</td><td>${esc(h.motivo || "")}</td></tr>`));
+      document.getElementById("btnMaisHistorico").style.display = dados.temMais ? "" : "none";
+    }
+
+    function mostrarAba(aba) {
+      voltarLista(true);
+      const hist = aba === "historico";
+      document.getElementById("painelPendentes").style.display = hist ? "none" : "";
+      document.getElementById("painelHistorico").style.display = hist ? "" : "none";
+      document.getElementById("abaPendentes").classList.toggle("ativa", !hist);
+      document.getElementById("abaHistorico").classList.toggle("ativa", hist);
+      if (hist) carregarHistorico(true); else carregarPendentes();
+    }
+
+    function voltarLista(silencioso) {
+      solicitacaoAtual = null;
+      document.getElementById("painelDetalhe").style.display = "none";
+      document.getElementById("rodapeSolic").style.display = "";
+      if (!silencioso) { document.getElementById("painelPendentes").style.display = ""; mensagem("msgSolic", ""); carregarPendentes(); }
+    }
+
+    async function analisarSolicitacao(id) {
+      mensagem("msgSolic", "");
+      const { ok, dados: d } = await apiFetch("/api/solicitacoes/" + id);
+      if (!ok) { mensagem("msgSolic", d.erro || "Solicitação não encontrada.", true); carregarPendentes(); return; }
+      solicitacaoAtual = id;
+      document.getElementById("dadosCandidato").innerHTML =
+        `<p><strong>${esc(d.nome)}</strong></p><p>CPF: ${esc(fmtCpf(d.cpf))}</p><p>Nascimento: ${esc(nascBR(d.data_nascimento))}</p>
+         <p>E-mail: ${esc(d.email)}</p><p>Telefone: ${esc(fmtTel(d.telefone))}</p><p>Pedido em: ${esc(dataBR(d.criado_em))}</p>`;
+      document.getElementById("cargoAprovacao").value = "";
+      document.getElementById("motivoRejeicao").value = "";
+      document.getElementById("painelPendentes").style.display = "none";
+      document.getElementById("painelDetalhe").style.display = "";
+      document.getElementById("rodapeSolic").style.display = "none";
+    }
+
+    async function decidirSolicitacao(aprovar) {
+      if (!solicitacaoAtual) return;
+      const corpo = aprovar
+        ? { cargo: document.getElementById("cargoAprovacao").value }
+        : { motivo: document.getElementById("motivoRejeicao").value };
+      if (aprovar && !corpo.cargo) { mensagem("msgSolic", "Selecione o cargo para aprovar.", true); return; }
+      if (!aprovar && corpo.motivo.trim().length < 5) { mensagem("msgSolic", "Informe o motivo da rejeição (mínimo 5 caracteres).", true); return; }
+      const { ok, dados } = await apiFetch(`/api/solicitacoes/${solicitacaoAtual}/${aprovar ? "aprovar" : "rejeitar"}`,
+        { method: "POST", body: JSON.stringify(corpo) });
+      voltarLista();
+      if (ok) mensagem("msgSolic", (aprovar ? "Cadastro aprovado." : "Cadastro rejeitado.") + (dados.emailEnviado ? "" : " Atenção: o e-mail ao funcionário não pôde ser enviado."), !dados.emailEnviado);
+      else mensagem("msgSolic", dados.erro || "Não foi possível concluir a ação.", true);
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+      const popConv = document.getElementById("popupConvites");
+      const popSol = document.getElementById("popupSolicitacoes");
+
+      document.getElementById("linkAddIntegrantes").addEventListener("click", (e) => {
+        e.preventDefault(); mensagem("msgConvite", ""); popConv.showModal(); carregarConvites();
+      });
+      document.getElementById("linkSolicitacoes").addEventListener("click", (e) => {
+        e.preventDefault(); mensagem("msgSolic", ""); popSol.showModal(); mostrarAba("pendentes");
+      });
+      document.getElementById("formConvite").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const campo = document.getElementById("emailConvite");
+        const btn = document.getElementById("btnEnviarConvite");
+        if (!campo.value.trim()) { mensagem("msgConvite", "Informe o e-mail.", true); return; }
+        btn.disabled = true;
+        try { if (await enviarConvite(campo.value.trim())) campo.value = ""; } finally { btn.disabled = false; }
+      });
+      document.getElementById("listaConvites").addEventListener("click", async (e) => {
+        const b = e.target.closest("button[data-acao]");
+        if (!b) return;
+        b.disabled = true;
+        await apiFetch(`/api/convites/${b.dataset.id}/cancelar`, { method: "POST" });
+        if (b.dataset.acao === "reenviar") await enviarConvite(b.dataset.email); else await carregarConvites();
+      });
+      document.getElementById("listaPendentes").addEventListener("click", (e) => {
+        const b = e.target.closest("button[data-analisar]");
+        if (b) analisarSolicitacao(b.dataset.analisar);
+      });
+      document.getElementById("btnAprovar").addEventListener("click", () => decidirSolicitacao(true));
+      document.getElementById("btnRejeitar").addEventListener("click", () => decidirSolicitacao(false));
+      document.getElementById("btnMaisHistorico").addEventListener("click", () => { paginaHistorico++; carregarHistorico(false); });
+      setInterval(() => { if (nivelUsuario === "gerente") atualizarBadgePendentes(); }, 30000);
     });
   </script>
 </body>

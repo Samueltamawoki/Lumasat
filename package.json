@@ -2,10 +2,13 @@
   "name": "tcc--node",
   "version": "1.0.0",
   "description": "",
-  "main": "db.js",
+  "main": "server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node server.js"
+    "start": "node server.js",
+    "test": "node tests/unidade.js",
+    "test:integracao": "node tests/integracao.js",
+    "migrar-usuarios": "node scripts/migrar-usuarios.js",
+    "criar-admin": "node scripts/criar-admin.js"
   },
   "keywords": [],
   "author": "",
@@ -13,9 +16,6 @@
   "type": "commonjs",
   "dependencies": {
     "express": "^5.3.0",
-    "expresse": "^1.0.2",
-    "mysql": "^2.18.1",
-    "mysql2": "^3.24.6",
-    "node.js": "^0.0.1-security"
+    "mysql2": "^3.24.6"
   }
 }

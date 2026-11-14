@@ -46,47 +46,30 @@
 
     </form>
 
-    <p class="register-link">Não tem uma conta? <a href="cadastrar.html">Cadastre-se</a></p>
+    <p class="register-link">Recebeu um convite? <a href="cadastrar.html">Criar conta</a></p>
 
     <hr class="divider">
-    <p class="hint">Crie uma conta ou use suas credenciais existentes</p>
+    <p class="hint">O cadastro é feito somente por convite do gerente da sua empresa</p>
 
   </div>
 
   <script>lucide.createIcons();</script>
 
   <script>
-    // Verifica se a URL contém o parâmetro ?erro=true
-    const urlParams = new URLSearchParams(window.location.search);
-
-    if (urlParams.has('erro')) {
+    // Mensagens de erro vindas do servidor (?erro=codigo)
+    const erro = new URLSearchParams(window.location.search).get('erro');
+    if (erro) {
+      const mensagens = {
+        pendente: "Seu cadastro está aguardando aprovação do gerente.",
+        rejeitado: "Seu cadastro não foi aprovado. Fale com o gerente da sua empresa.",
+        inativo: "Esta conta está inativa. Fale com o gerente da sua empresa.",
+        bloqueado: "Muitas tentativas. Aguarde alguns minutos e tente novamente.",
+        servidor: "Erro no servidor. Tente novamente em instantes."
+      };
       const msg = document.getElementById('mensagemErro');
-      msg.innerText = "E-mail ou senha incorretos!";
-      msg.style.display = "block"; // Faz a mensagem aparecer
+      msg.innerText = mensagens[erro] || "E-mail ou senha incorretos!";
+      msg.style.display = "block";
     }
-
-
-   // Exemplo dentro do evento de submit do login:
-const campoEmail = document.getElementById('email').value; // Pegue o valor do seu input de e-mail
-
-if (campoEmail) {
-  // Pega a parte antes do '@' (ex: "joao" de "joao@gmail.com")
-  const primeiroNome = campoEmail.split('@')[0];
-  
-  // Deixa a primeira letra maiúscula (ex: "Joao")
-  const nomeFormatado = primeiroNome.charAt(0).toUpperCase() + primeiroNome.slice(1);
-
-  // Salva no navegador
-  localStorage.setItem('usuarioEmail', campoEmail);
-  localStorage.setItem('usuarioNome', nomeFormatado);
-
-  // Vai para a dashboard
-  window.location.href = 'dashboard.html';
-}
-
-
-
-
   </script>
 
 </body>

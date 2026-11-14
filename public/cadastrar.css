@@ -297,3 +297,57 @@ button[type="submit"]:active { transform: scale(0.985); }
     cursor: not-allowed;
     font-weight: 500;
 }
+/* ── Erros de validação e requisitos de senha (mesma paleta) ── */
+.field-erro {
+  font-size: 0.74rem;
+  color: #b91c1c;
+  font-weight: 600;
+  margin-top: 3px;
+}
+
+.field-erro:empty {
+  display: none;
+}
+
+.input-wrapper input.invalido {
+  border-color: #dc2626;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.12);
+}
+
+.alerta-form {
+  background: #fef2f2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-bottom: 14px;
+}
+
+.req-senha {
+  list-style: none;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px 10px;
+  margin: 4px 0 0;
+  padding: 0;
+}
+
+.req-senha li {
+  font-size: 0.74rem;
+  color: #94a3b8;
+}
+
+.req-senha li::before {
+  content: "○ ";
+}
+
+.req-senha li.ok {
+  color: #166534;
+  font-weight: 600;
+}
+
+.req-senha li.ok::before {
+  content: "✓ ";
+}
