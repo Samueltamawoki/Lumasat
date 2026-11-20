@@ -49,7 +49,7 @@ const ARQUIVO_MAQUINAS = process.env.MAQUINAS_ARQUIVO || path.join(__dirname, "d
 let fila = Promise.resolve();
 function comExclusao(fn) {
     const p = fila.then(fn, fn);
-    fila = p.catch(() => {});
+    fila = p.catch(() => { });
     return p;
 }
 
@@ -115,8 +115,10 @@ app.get("/api/maquinas", exigirLogin, (req, res) => {
         if (m.status === "ativa" && (m.alerta || m.temperatura >= 80)) alertas++;
         eficienciaTotal += m.eficiencia || 0;
     });
-    res.json({ maquinas, total, ativas, operacao, alertas,
-        mediaEficiencia: total > 0 ? Math.round(eficienciaTotal / total) : 0 });
+    res.json({
+        maquinas, total, ativas, operacao, alertas,
+        mediaEficiencia: total > 0 ? Math.round(eficienciaTotal / total) : 0
+    });
 });
 
 const texto = (v, max) => (typeof v === "string" ? v.trim().slice(0, max) : "");
@@ -225,13 +227,121 @@ app.use(rotasSolicitacoes(pdb, guardas));
 app.use(rotasAdmin(pdb, guardas));
 
 // =============================================================
+// REMOÇÃO DE MÁQUINAS E INTEGRANTES (somente gerente)
+// =============================================================
+const guardaGerente = [exigirLogin, exigirNivel("gerente"), exigirEmpresa];
+
+// Remover máquina da empresa (somente gerente)
+app.delete("/api/maquinas", ...guardaGerente, (req, res) => {
+    const nome = texto(req.body?.nome, 100);
+    if (!nome) return res.status(400).json({ erro: "Nome da máquina inválido." });
+
+    comExclusao(() => {
+        const maquinas = lerMaquinas();
+        const indice = maquinas.findIndex((m) => m.nome === nome && mesmaEmpresa(m, req.user.empresa_nome));
+        if (indice === -1) return { status: 404, corpo: { erro: "Máquina não encontrada." } };
+
+        maquinas.splice(indice, 1);
+        gravarMaquinas(maquinas);
+        return { status: 200, corpo: { sucesso: true } };
+    }).then(({ status, corpo }) => {
+        if (status === 200) {
+            auditar(pdb, { req, usuario: req.user, acao: "maquina_removida", entidade: "maquina", detalhes: { nome } });
+        }
+        res.status(status).json(corpo);
+    }).catch((err) => {
+        console.error("Erro ao remover máquina:", err.message);
+        res.status(500).json({ erro: "Erro ao remover máquina." });
+    });
+});
+
+// Listar integrantes ativos da empresa (somente gerente)
+app.get("/api/integrantes", ...guardaGerente, async (req, res) => {
+    try {
+        const [rows] = await pdb.query(
+            `SELECT id, nome, email, nivel
+               FROM usuarios
+              WHERE empresa_id = ? AND status = 'ativo'
+              ORDER BY FIELD(nivel, 'gerente', 'supervisor', 'tecnico', 'operador'), nome ASC`,
+            [req.user.empresa_id]
+        );
+        res.json(rows);
+    } catch (e) {
+        console.error("Erro ao listar integrantes:", e);
+        res.status(500).json({ erro: "Erro no servidor." });
+    }
+});
+
+// Remover integrante da empresa (somente gerente)
+app.delete("/api/integrantes/:id", ...guardaGerente, async (req, res) => {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id <= 0) {
+        return res.status(404).json({ erro: "Integrante não encontrado." });
+    }
+    if (id === req.user.id) {
+        return res.status(403).json({ erro: "Você não pode remover a sua própria conta." });
+    }
+
+    try {
+        const [rows] = await pdb.query(
+            "SELECT id, nome, email, nivel FROM usuarios WHERE id = ? AND empresa_id = ? AND status = 'ativo'",
+            [id, req.user.empresa_id]
+        );
+        const alvo = rows[0];
+        if (!alvo) return res.status(404).json({ erro: "Integrante não encontrado." });
+        if (alvo.nivel === "gerente") {
+            return res.status(403).json({ erro: "Não é permitido remover outro gerente." });
+        }
+
+        await pdb.query(
+            "UPDATE usuarios SET status = 'inativo', nivel = NULL WHERE id = ? AND empresa_id = ?",
+            [id, req.user.empresa_id]
+        );
+        await pdb.query("DELETE FROM sessoes WHERE usuario_id = ?", [id]);
+
+        await auditar(pdb, {
+            req,
+            usuario: req.user,
+            acao: "integrante_removido",
+            entidade: "usuario",
+            entidadeId: id,
+            detalhes: { nome: alvo.nome, email: alvo.email, cargo_anterior: alvo.nivel }
+        });
+
+        res.json({ ok: true });
+    } catch (e) {
+        console.error("Erro ao remover integrante:", e);
+        res.status(500).json({ erro: "Erro no servidor." });
+    }
+});
+
+// 3. Remover máquina da empresa (somente gerente)
+app.delete("/api/maquinas", ...guardaGerente, async (req, res) => {
+  const nome = String(req.body?.nome ?? "").trim();
+  if (!nome) return res.status(400).json({ erro: "Nome da máquina inválido." });
+
+  // Aqui entra a remoção na sua lista/tabela de máquinas filtrando pela empresa do req.user
+  // e o registro de auditoria:
+  await auditar(pdb, {
+    req,
+    usuario: req.user,
+    acao: "maquina_removida",
+    entidade: "maquina",
+    detalhes: { nome }
+  });
+
+  res.json({ ok: true });
+});
+
+
+// =============================================================
 // INICIALIZAÇÃO (só quando executado diretamente; os testes importam o `app`)
 // =============================================================
 function iniciar() {
     setInterval(simularDadosContinuos, 5000);
     setInterval(() => {
         rotasConvites.expirarConvites(pdb).catch((e) => console.error("Erro ao expirar convites:", e.message));
-        pdb.query("DELETE FROM sessoes WHERE expira_em <= UTC_TIMESTAMP()").catch(() => {});
+        pdb.query("DELETE FROM sessoes WHERE expira_em <= UTC_TIMESTAMP()").catch(() => { });
         limite.limparExpirados();
     }, 60 * 1000);
     const PORT = process.env.PORT || 3000;

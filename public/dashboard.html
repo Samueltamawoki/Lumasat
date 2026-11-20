@@ -62,6 +62,9 @@
               <i class="fa-solid fa-user-check"></i> Solicitações de cadastro
               <span id="badgePendentes" class="badge-contador" style="display: none;">0</span>
             </a>
+            <a href="#" id="linkGerenciarIntegrantes" style="display: none;">
+              <i class="fa-solid fa-users-gear"></i> Gerenciar Integrantes
+            </a>
 
             <a href="#"><i class="fa-solid fa-bell"></i> Notificações</a>
             <hr />
@@ -122,6 +125,54 @@
         </div>
       </div>
     </div>
+
+    <!-- ========== PAINEL DO ADMINISTRADOR (Empresas e Gerentes) ========== -->
+    <div class="table-wrapper" id="painelAdminEmpresas" style="display: none;">
+      <div class="table-header">
+        <h3><i class="fa-solid fa-building"></i> Empresas Cadastradas</h3>
+        <button type="button" class="btn-add-machine" style="display: inline-flex !important;"
+          onclick="document.getElementById('popupNovaEmpresa').showModal()">
+          <i class="fa-solid fa-plus"></i> Nova Empresa e Gerente
+        </button>
+      </div>
+      <div class="table-responsive">
+        <table class="machines-table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Empresa</th>
+              <th>Criada em</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="listaEmpresasAdmin"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Modal: Cadastrar Nova Empresa + Convidar Gerente -->
+    <dialog id="popupNovaEmpresa" class="popup-gestao">
+      <div class="popup-header">
+        <h2>Cadastrar Empresa e Convidar Gerente</h2>
+        <p>Cria a empresa e envia o convite de acesso para o gerente responsável.</p>
+      </div>
+      <form id="formNovaEmpresa" novalidate>
+        <div class="form-group">
+          <label for="empNome">Nome da Empresa</label>
+          <input type="text" id="empNome" placeholder="Ex: Metalúrgica Alfa Ltda" required />
+        </div>
+        <div class="form-group">
+          <label for="gerEmail">E-mail do Gerente</label>
+          <input type="email" id="gerEmail" placeholder="gerente@empresa.com" required />
+        </div>
+        <p id="msgAdminEmpresa" class="msg-popup" style="display: none;"></p>
+        <div class="popup-actions">
+          <button type="button" class="btn-secondary"
+            onclick="document.getElementById('popupNovaEmpresa').close()">Cancelar</button>
+          <button type="submit" class="btn-primary-modal" id="btnSalvarEmpresa">Criar e Enviar Convite</button>
+        </div>
+      </form>
+    </dialog>
 
     <!-- Modal para Cadastrar Nova Máquina -->
     <dialog id="meuPopup">
@@ -193,7 +244,33 @@
       </div>
     </dialog>
 
-    <div class="table-wrapper">
+    <dialog id="popupIntegrantes" class="popup-gestao">
+      <div class="popup-header">
+        <h2>Integrantes da Empresa</h2>
+        <p>Visualize os membros ativos e remova o acesso de funcionários quando necessário.</p>
+      </div>
+      <p id="msgIntegrantes" class="msg-popup" style="display: none;"></p>
+      <div class="table-responsive">
+        <table class="machines-table">
+          <thead>
+            <tr>
+              <th>Nome</th>
+              <th>E-mail</th>
+              <th>Cargo</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="listaIntegrantes"></tbody>
+        </table>
+      </div>
+      <div class="popup-actions">
+        <button type="button" class="btn-secondary" onclick="document.getElementById('popupIntegrantes').close()">
+          Fechar
+        </button>
+      </div>
+    </dialog>
+
+    <div class="table-wrapper" id="painelMaquinas">
       <div class="table-header">
         <h3><i class="fa-solid fa-microchip"></i> Máquinas em Operação</h3>
         <div class="search-box">
@@ -243,6 +320,10 @@
     <div class="popup-actions" style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
       <button type="button" class="btn-secondary" onclick="document.getElementById('popupStatusMaquina').close()">
         Cancelar
+      </button>
+      <button type="button" id="btnRemoverMaquina" class="btn-secondary btn-rejeitar" style="display: none;"
+        onclick="removerMaquinaSelecionada()">
+        Remover Máquina
       </button>
       <button id="btnAlternarStatusModal" class="apenas-tecnico-supervisor" type="button"
         onclick="alternarStatusSelecionado()">
@@ -400,9 +481,18 @@
 
         // Os botões abaixo são só conveniência visual; quem decide de verdade é o servidor.
         nivelUsuario = (usuario.nivel || "").trim().toLowerCase();
+        const eAdmin = nivelUsuario === "administrador" || nivelUsuario === "admin";
         const eGerente = nivelUsuario === "gerente";
         const eSupervisor = nivelUsuario === "supervisor";
         const eTecnico = nivelUsuario === "tecnico";
+
+        if (eAdmin) {
+          document.querySelector(".cards-grid").style.display = "none";
+          document.getElementById("painelMaquinas").style.display = "none";
+          document.getElementById("painelAdminEmpresas").style.display = "block";
+          await carregarEmpresasAdmin();
+          return;
+        }
 
         if (eGerente || eSupervisor || eTecnico) {
           document.querySelectorAll(".apenas-tecnico-supervisor")
@@ -414,7 +504,7 @@
             .forEach(el => el.style.setProperty("display", "inline-flex", "important"));
         }
 
-        ["linkAddIntegrantes", "linkSolicitacoes"].forEach((id) => {
+        ["linkAddIntegrantes", "linkSolicitacoes", "linkGerenciarIntegrantes"].forEach((id) => {
           const el = document.getElementById(id);
           if (el) el.style.setProperty("display", eGerente ? "flex" : "none", "important");
         });
@@ -557,7 +647,29 @@
         btnAlternar.style.backgroundColor = "#16a34a";
       }
 
+      const btnRemover = document.getElementById("btnRemoverMaquina");
+      if (btnRemover) {
+        btnRemover.style.display = nivelUsuario === "gerente" ? "inline-block" : "none";
+      }
+
       document.getElementById("popupStatusMaquina").showModal();
+    }
+
+    async function removerMaquinaSelecionada() {
+      if (!maquinaSelecionada || nivelUsuario !== "gerente") return;
+      if (!confirm(`Tem certeza que deseja remover a máquina "${maquinaSelecionada.nome}"?`)) return;
+
+      const { ok, dados } = await apiFetch("/api/maquinas", {
+        method: "DELETE",
+        body: JSON.stringify({ nome: maquinaSelecionada.nome })
+      });
+
+      if (ok) {
+        document.getElementById("popupStatusMaquina").close();
+        await carregarDashboard();
+      } else {
+        alert(dados.erro || "Erro ao remover a máquina.");
+      }
     }
 
     async function alternarStatusSelecionado() {
@@ -600,10 +712,11 @@
     // 7. Eventos ao carregar a página
     document.addEventListener("DOMContentLoaded", async () => {
       await carregarPerfil();
-      await carregarDashboard();
-      ativarFiltroBusca();
-
-      setInterval(carregarDashboard, 3000);
+      if (!["administrador", "admin"].includes(nivelUsuario)) {
+        await carregarDashboard();
+        ativarFiltroBusca();
+        setInterval(carregarDashboard, 3000);
+      }
 
       const btnExit = document.getElementById("bntLogout");
       if (btnExit) {
@@ -816,6 +929,114 @@
       document.getElementById("btnMaisHistorico").addEventListener("click", () => { paginaHistorico++; carregarHistorico(false); });
       setInterval(() => { if (nivelUsuario === "gerente") atualizarBadgePendentes(); }, 30000);
     });
+
+    const ROTULO_CARGO = { gerente: "Gerente", supervisor: "Supervisor", tecnico: "Técnico", operador: "Operador" };
+
+    async function carregarIntegrantes() {
+      const { ok, dados } = await apiFetch("/api/integrantes");
+      const tb = document.getElementById("listaIntegrantes");
+      if (!tb) return;
+      if (!ok) {
+        tb.innerHTML = '<tr><td colspan="4">Não foi possível carregar os integrantes.</td></tr>';
+        return;
+      }
+      tb.innerHTML = dados.length ? "" : '<tr><td colspan="4">Nenhum integrante ativo encontrado.</td></tr>';
+      dados.forEach((u) => {
+        const acao = u.nivel !== "gerente"
+          ? `<button type="button" class="btn-secondary btn-mini btn-rejeitar" data-remover-id="${u.id}" data-remover-nome="${esc(u.nome)}">Remover</button>`
+          : '<span style="color:#64748b;font-size:12px;">—</span>';
+        tb.insertAdjacentHTML("beforeend", `
+      <tr>
+        <td style="font-weight: 600;">${esc(u.nome)}</td>
+        <td>${esc(u.email)}</td>
+        <td>${esc(ROTULO_CARGO[u.nivel] || u.nivel || "-")}</td>
+        <td>${acao}</td>
+      </tr>
+    `);
+      });
+    }
+
+    const popInt = document.getElementById("popupIntegrantes");
+    document.getElementById("linkGerenciarIntegrantes").addEventListener("click", (e) => {
+      e.preventDefault();
+      mensagem("msgIntegrantes", "");
+      popInt.showModal();
+      carregarIntegrantes();
+    });
+
+    document.getElementById("listaIntegrantes").addEventListener("click", async (e) => {
+      const b = e.target.closest("button[data-remover-id]");
+      if (!b) return;
+      if (!confirm(`Remover o acesso de ${b.dataset.removerNome}?`)) return;
+      b.disabled = true;
+      mensagem("msgIntegrantes", "");
+      const { ok, dados } = await apiFetch(`/api/integrantes/${b.dataset.removerId}`, { method: "DELETE" });
+      if (ok) {
+        mensagem("msgIntegrantes", "Integrante removido com sucesso.", false);
+        await carregarIntegrantes();
+      } else {
+        mensagem("msgIntegrantes", dados.erro || "Não foi possível remover o integrante.", true);
+        b.disabled = false;
+      }
+    });
+
+    // ============ GESTÃO DO ADMINISTRADOR: empresas e convite do gerente ============
+    async function carregarEmpresasAdmin() {
+      const { ok, dados } = await apiFetch("/api/admin/empresas");
+      const tb = document.getElementById("listaEmpresasAdmin");
+      if (!tb) return;
+      if (!ok) {
+        tb.innerHTML = '<tr><td colspan="4">Não foi possível carregar as empresas.</td></tr>';
+        return;
+      }
+      const lista = Array.isArray(dados) ? dados : [];
+      tb.innerHTML = lista.length ? "" : '<tr><td colspan="4">Nenhuma empresa cadastrada.</td></tr>';
+      lista.forEach((e) => {
+        const ativa = e.ativa === 1 || e.ativa === true;
+        tb.insertAdjacentHTML("beforeend", `
+          <tr>
+            <td>#${esc(e.id)}</td>
+            <td style="font-weight: 600;">${esc(e.nome)}</td>
+            <td>${esc(dataBR(e.criado_em))}</td>
+            <td><span class="status-badge ${ativa ? "status-active" : "status-off"}">${ativa ? "Ativa" : "Inativa"}</span></td>
+          </tr>
+        `);
+      });
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+      const formEmp = document.getElementById("formNovaEmpresa");
+      if (!formEmp) return;
+
+      formEmp.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        mensagem("msgAdminEmpresa", "");
+        const btn = document.getElementById("btnSalvarEmpresa");
+        btn.disabled = true;
+
+        const payload = {
+          nome: document.getElementById("empNome").value.trim(),
+          emailGerente: document.getElementById("gerEmail").value.trim()
+        };
+
+        try {
+          const { ok, dados } = await apiFetch("/api/admin/empresas", {
+            method: "POST",
+            body: JSON.stringify(payload)
+          });
+          if (ok) {
+            formEmp.reset();
+            document.getElementById("popupNovaEmpresa").close();
+            await carregarEmpresasAdmin();
+          } else {
+            mensagem("msgAdminEmpresa", dados.erro || "Erro ao cadastrar empresa.", true);
+          }
+        } finally {
+          btn.disabled = false;
+        }
+      });
+    });
+
   </script>
 </body>
 

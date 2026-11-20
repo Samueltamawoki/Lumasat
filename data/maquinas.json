@@ -9,29 +9,20 @@
         "alerta": false
     },
     {
-        "nome": "Máquina Laser 02",
-        "empresa": "Empresa Beta",
-        "status": "inativa",
-        "eficiencia": 0,
-        "temperatura": 20,
-        "operacao": false,
-        "alerta": false
-    },
-    {
         "nome": "Prensa Industrial 03",
         "empresa": "Empresa Alfa",
         "status": "ativa",
-        "eficiencia": 75,
-        "temperatura": 64,
+        "eficiencia": 99,
+        "temperatura": 83,
         "operacao": true,
-        "alerta": false
+        "alerta": true
     },
     {
         "nome": "Torno Mecânico 04",
         "empresa": "Empresa Beta",
         "status": "ativa",
-        "eficiencia": 75,
-        "temperatura": 51,
+        "eficiencia": 95,
+        "temperatura": 28,
         "operacao": true,
         "alerta": false
     },
@@ -39,8 +30,8 @@
         "nome": "Máquina Corte 05",
         "empresa": "Empresa Alfa",
         "status": "ativa",
-        "eficiencia": 85,
-        "temperatura": 65,
+        "eficiencia": 75,
+        "temperatura": 66,
         "operacao": true,
         "alerta": false
     },
@@ -52,10 +43,10 @@
         "tempoConsumo": "erew",
         "empresa": "Empresa Alfa",
         "status": "ativa",
-        "eficiencia": 85,
-        "temperatura": 83,
+        "eficiencia": 91,
+        "temperatura": 48,
         "operacao": true,
-        "alerta": true
+        "alerta": false
     },
     {
         "nome": "Cnc",
@@ -65,8 +56,8 @@
         "tempoConsumo": "2 horas",
         "empresa": "Curco company",
         "status": "ativa",
-        "eficiencia": 97,
-        "temperatura": 49,
+        "eficiencia": 76,
+        "temperatura": 56,
         "operacao": true,
         "alerta": false
     },
@@ -78,10 +69,10 @@
         "tempoConsumo": "4 horas",
         "empresa": "Curco company",
         "status": "ativa",
-        "eficiencia": 70,
-        "temperatura": 46,
+        "eficiencia": 89,
+        "temperatura": 83,
         "operacao": true,
-        "alerta": false
+        "alerta": true
     },
     {
         "nome": "da",
@@ -91,8 +82,8 @@
         "tempoConsumo": "123",
         "empresa": "Curco company",
         "status": "ativa",
-        "eficiencia": 87,
-        "temperatura": 43,
+        "eficiencia": 70,
+        "temperatura": 48,
         "operacao": true,
         "alerta": false
     },
@@ -104,10 +95,10 @@
         "tempoConsumo": "31",
         "empresa": "Curco company",
         "status": "ativa",
-        "eficiencia": 72,
-        "temperatura": 64,
+        "eficiencia": 90,
+        "temperatura": 80,
         "operacao": true,
-        "alerta": false
+        "alerta": true
     },
     {
         "nome": "f",
@@ -117,8 +108,8 @@
         "tempoConsumo": "3",
         "empresa": "Curco company",
         "status": "ativa",
-        "eficiencia": 93,
-        "temperatura": 78,
+        "eficiencia": 98,
+        "temperatura": 52,
         "operacao": true,
         "alerta": false
     },
@@ -130,8 +121,8 @@
         "tempoConsumo": "2313",
         "empresa": "Curco company",
         "status": "ativa",
-        "eficiencia": 83,
-        "temperatura": 53,
+        "eficiencia": 99,
+        "temperatura": 49,
         "operacao": true,
         "alerta": false
     },
@@ -143,8 +134,8 @@
         "tempoConsumo": "3123",
         "empresa": "Curco company",
         "status": "ativa",
-        "eficiencia": 87,
-        "temperatura": 33,
+        "eficiencia": 90,
+        "temperatura": 79,
         "operacao": true,
         "alerta": false
     },
@@ -156,10 +147,10 @@
         "tempoConsumo": "3123",
         "empresa": "Curco company",
         "status": "ativa",
-        "eficiencia": 73,
-        "temperatura": 81,
+        "eficiencia": 98,
+        "temperatura": 51,
         "operacao": true,
-        "alerta": true
+        "alerta": false
     },
     {
         "nome": "1231",
@@ -247,8 +238,8 @@
         "tempoConsumo": "87875",
         "empresa": "Empresa Alfa",
         "status": "ativa",
-        "eficiencia": 92,
-        "temperatura": 51,
+        "eficiencia": 98,
+        "temperatura": 59,
         "operacao": true,
         "alerta": false
     }
