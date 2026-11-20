@@ -143,6 +143,7 @@
               <th>Empresa</th>
               <th>Criada em</th>
               <th>Status</th>
+              <th></th>
             </tr>
           </thead>
           <tbody id="listaEmpresasAdmin"></tbody>
@@ -441,6 +442,34 @@
     </div>
   </dialog>
 
+  <!-- ========== POPUP: CONFIRMAÇÃO DE REMOÇÃO ========== -->
+  <dialog id="popupConfirmarRemocao" class="popup-gestao" style="max-width: 430px; border-radius: 16px; padding: 26px;">
+    <div style="display: flex; align-items: center; gap: 14px; margin-bottom: 14px;">
+      <div
+        style="width: 46px; height: 46px; border-radius: 12px; background: #fee2e2; color: #dc2626; display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0;">
+        <i class="fa-solid fa-triangle-exclamation"></i>
+      </div>
+      <div>
+        <h2 style="margin: 0; font-size: 1.15rem; color: #0f172a;">Confirmar remoção</h2>
+        <span style="font-size: 0.82rem; color: #64748b;">Ação irreversível no sistema</span>
+      </div>
+    </div>
+
+    <p id="textoConfirmacao" style="margin: 0 0 12px; color: #334155; font-size: 0.95rem; line-height: 1.5;"></p>
+
+    <div id="avisoConfirmacao"
+      style="background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; padding: 10px 14px; border-radius: 10px; font-size: 0.85rem;">
+    </div>
+
+    <div class="popup-actions" style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 22px;">
+      <button type="button" id="btnCancelarRemocao" class="btn-secondary">Cancelar</button>
+      <button type="button" id="btnConfirmarRemocao" class="btn-secondary btn-rejeitar"
+        style="background: #dc2626; color: #fff; border-color: #dc2626;">
+        <i class="fa-solid fa-trash-can" style="margin-right: 6px;"></i> Sim, remover
+      </button>
+    </div>
+  </dialog>
+
   <script>
     // 1. A identidade vem da sessão do servidor (cookie httpOnly), nunca da URL
     const esc = (v) => String(v ?? "").replace(/[&<>"']/g,
@@ -655,10 +684,37 @@
       document.getElementById("popupStatusMaquina").showModal();
     }
 
+    function confirmarRemocao(tipo, nome, avisoExtra = "Essa ação não pode ser desfeita.") {
+      return new Promise((resolve) => {
+        const dialog = document.getElementById("popupConfirmarRemocao");
+        const txt = document.getElementById("textoConfirmacao");
+        const aviso = document.getElementById("avisoConfirmacao");
+        const btnSim = document.getElementById("btnConfirmarRemocao");
+        const btnNao = document.getElementById("btnCancelarRemocao");
+
+        txt.innerHTML = `Você realmente quer remover ${esc(tipo)} <strong>"${esc(nome)}"</strong>?`;
+        aviso.textContent = avisoExtra;
+
+        const finalizar = (resultado) => {
+          dialog.removeEventListener("close", aoFechar);
+          btnSim.onclick = null;
+          btnNao.onclick = null;
+          if (dialog.open) dialog.close();
+          resolve(resultado);
+        };
+
+        const aoFechar = () => finalizar(false);
+        dialog.addEventListener("close", aoFechar);
+        btnNao.onclick = () => finalizar(false);
+        btnSim.onclick = () => finalizar(true);
+
+        dialog.showModal();
+      });
+    }
+
     async function removerMaquinaSelecionada() {
       if (!maquinaSelecionada || nivelUsuario !== "gerente") return;
-      if (!confirm(`Tem certeza que deseja remover a máquina "${maquinaSelecionada.nome}"?`)) return;
-
+      if (!(await confirmarRemocao("a máquina", maquinaSelecionada.nome, "Todos os dados dessa máquina serão apagados."))) return;
       const { ok, dados } = await apiFetch("/api/maquinas", {
         method: "DELETE",
         body: JSON.stringify({ nome: maquinaSelecionada.nome })
@@ -967,7 +1023,7 @@
     document.getElementById("listaIntegrantes").addEventListener("click", async (e) => {
       const b = e.target.closest("button[data-remover-id]");
       if (!b) return;
-      if (!confirm(`Remover o acesso de ${b.dataset.removerNome}?`)) return;
+      if (!(await confirmarRemocao("o integrante", b.dataset.removerNome, "O acesso dele será bloqueado imediatamente."))) return;
       b.disabled = true;
       mensagem("msgIntegrantes", "");
       const { ok, dados } = await apiFetch(`/api/integrantes/${b.dataset.removerId}`, { method: "DELETE" });
@@ -986,11 +1042,11 @@
       const tb = document.getElementById("listaEmpresasAdmin");
       if (!tb) return;
       if (!ok) {
-        tb.innerHTML = '<tr><td colspan="4">Não foi possível carregar as empresas.</td></tr>';
+        tb.innerHTML = '<tr><td colspan="5">Não foi possível carregar as empresas.</td></tr>';
         return;
       }
       const lista = Array.isArray(dados) ? dados : [];
-      tb.innerHTML = lista.length ? "" : '<tr><td colspan="4">Nenhuma empresa cadastrada.</td></tr>';
+      tb.innerHTML = lista.length ? "" : '<tr><td colspan="5">Nenhuma empresa cadastrada.</td></tr>';
       lista.forEach((e) => {
         const ativa = e.ativa === 1 || e.ativa === true;
         tb.insertAdjacentHTML("beforeend", `
@@ -999,10 +1055,30 @@
             <td style="font-weight: 600;">${esc(e.nome)}</td>
             <td>${esc(dataBR(e.criado_em))}</td>
             <td><span class="status-badge ${ativa ? "status-active" : "status-off"}">${ativa ? "Ativa" : "Inativa"}</span></td>
+            <td>
+              <button type="button" class="btn-secondary btn-mini btn-rejeitar"
+                data-remover-empresa-id="${e.id}" data-remover-empresa-nome="${esc(e.nome)}">
+                Remover
+              </button>
+            </td>
           </tr>
         `);
       });
     }
+
+    document.getElementById("listaEmpresasAdmin").addEventListener("click", async (e) => {
+      const b = e.target.closest("button[data-remover-empresa-id]");
+      if (!b) return;
+      if (!(await confirmarRemocao("a empresa", b.dataset.removerEmpresaNome, "Todos os usuários, convites e máquinas dessa empresa serão apagados."))) return;
+      b.disabled = true;
+      const { ok, dados } = await apiFetch(`/api/admin/empresas/${b.dataset.removerEmpresaId}`, { method: "DELETE" });
+      if (ok) {
+        await carregarEmpresasAdmin();
+      } else {
+        alert(dados.erro || "Não foi possível remover a empresa.");
+        b.disabled = false;
+      }
+    });
 
     document.addEventListener("DOMContentLoaded", () => {
       const formEmp = document.getElementById("formNovaEmpresa");

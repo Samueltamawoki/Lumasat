@@ -222,6 +222,65 @@ app.get("/api/me", exigirLogin, (req, res) => {
     res.json({ nome, email, empresa: empresa_nome || "", nivel });
 });
 
+
+// Remover empresa e todos os vínculos dela (somente administrador)
+app.delete("/api/admin/empresas/:id", exigirLogin, exigirNivel("administrador"), async (req, res) => {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id <= 0) {
+        return res.status(400).json({ erro: "ID de empresa inválido." });
+    }
+
+    const conn = await pdb.getConnection();
+    try {
+        await conn.beginTransaction();
+
+        const [empresas] = await conn.query("SELECT id, nome FROM empresas WHERE id = ?", [id]);
+        const empresa = empresas[0];
+        if (!empresa) {
+            await conn.rollback();
+            return res.status(404).json({ erro: "Empresa não encontrada." });
+        }
+
+        // 1. Derruba sessões ativas de todos os usuários da empresa
+        await conn.query(
+            "DELETE FROM sessoes WHERE usuario_id IN (SELECT id FROM usuarios WHERE empresa_id = ?)",
+            [id]
+        );
+        // 2. Remove solicitações, convites e usuários vinculados à empresa
+        await conn.query("DELETE FROM solicitacoes_cadastro WHERE empresa_id = ?", [id]);
+        await conn.query("DELETE FROM convites WHERE empresa_id = ?", [id]);
+        await conn.query("DELETE FROM usuarios WHERE empresa_id = ?", [id]);
+        // 3. Remove a empresa
+        await conn.query("DELETE FROM empresas WHERE id = ?", [id]);
+
+        await conn.commit();
+
+        // 4. Remove as máquinas dessa empresa do arquivo maquinas.json
+        await comExclusao(() => {
+            const maquinas = lerMaquinas();
+            const restantes = maquinas.filter((m) => !mesmaEmpresa(m, empresa.nome));
+            if (restantes.length !== maquinas.length) gravarMaquinas(restantes);
+        });
+
+        await auditar(pdb, {
+            req,
+            usuario: req.user,
+            acao: "empresa_removida",
+            entidade: "empresa",
+            entidadeId: id,
+            detalhes: { nome: empresa.nome }
+        });
+
+        res.json({ ok: true });
+    } catch (e) {
+        await conn.rollback();
+        console.error("Erro ao remover empresa:", e);
+        res.status(500).json({ erro: "Não foi possível remover a empresa." });
+    } finally {
+        conn.release();
+    }
+});
+
 app.use(rotasConvites(pdb, guardas));
 app.use(rotasSolicitacoes(pdb, guardas));
 app.use(rotasAdmin(pdb, guardas));
@@ -317,20 +376,20 @@ app.delete("/api/integrantes/:id", ...guardaGerente, async (req, res) => {
 
 // 3. Remover máquina da empresa (somente gerente)
 app.delete("/api/maquinas", ...guardaGerente, async (req, res) => {
-  const nome = String(req.body?.nome ?? "").trim();
-  if (!nome) return res.status(400).json({ erro: "Nome da máquina inválido." });
+    const nome = String(req.body?.nome ?? "").trim();
+    if (!nome) return res.status(400).json({ erro: "Nome da máquina inválido." });
 
-  // Aqui entra a remoção na sua lista/tabela de máquinas filtrando pela empresa do req.user
-  // e o registro de auditoria:
-  await auditar(pdb, {
-    req,
-    usuario: req.user,
-    acao: "maquina_removida",
-    entidade: "maquina",
-    detalhes: { nome }
-  });
+    // Aqui entra a remoção na sua lista/tabela de máquinas filtrando pela empresa do req.user
+    // e o registro de auditoria:
+    await auditar(pdb, {
+        req,
+        usuario: req.user,
+        acao: "maquina_removida",
+        entidade: "maquina",
+        detalhes: { nome }
+    });
 
-  res.json({ ok: true });
+    res.json({ ok: true });
 });
 
 
