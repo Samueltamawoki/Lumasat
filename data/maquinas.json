@@ -12,17 +12,17 @@
         "nome": "Prensa Industrial 03",
         "empresa": "Empresa Alfa",
         "status": "ativa",
-        "eficiencia": 99,
-        "temperatura": 83,
+        "eficiencia": 97,
+        "temperatura": 35,
         "operacao": true,
-        "alerta": true
+        "alerta": false
     },
     {
         "nome": "Torno Mecânico 04",
         "empresa": "Empresa Beta",
         "status": "ativa",
-        "eficiencia": 95,
-        "temperatura": 28,
+        "eficiencia": 78,
+        "temperatura": 32,
         "operacao": true,
         "alerta": false
     },
@@ -30,8 +30,8 @@
         "nome": "Máquina Corte 05",
         "empresa": "Empresa Alfa",
         "status": "ativa",
-        "eficiencia": 75,
-        "temperatura": 66,
+        "eficiencia": 83,
+        "temperatura": 21,
         "operacao": true,
         "alerta": false
     },
@@ -43,8 +43,8 @@
         "tempoConsumo": "erew",
         "empresa": "Empresa Alfa",
         "status": "ativa",
-        "eficiencia": 91,
-        "temperatura": 48,
+        "eficiencia": 94,
+        "temperatura": 42,
         "operacao": true,
         "alerta": false
     },
@@ -56,8 +56,8 @@
         "tempoConsumo": "2 horas",
         "empresa": "Curco company",
         "status": "ativa",
-        "eficiencia": 76,
-        "temperatura": 56,
+        "eficiencia": 91,
+        "temperatura": 21,
         "operacao": true,
         "alerta": false
     },
@@ -69,10 +69,10 @@
         "tempoConsumo": "4 horas",
         "empresa": "Curco company",
         "status": "ativa",
-        "eficiencia": 89,
-        "temperatura": 83,
+        "eficiencia": 93,
+        "temperatura": 61,
         "operacao": true,
-        "alerta": true
+        "alerta": false
     },
     {
         "nome": "da",
@@ -82,8 +82,8 @@
         "tempoConsumo": "123",
         "empresa": "Curco company",
         "status": "ativa",
-        "eficiencia": 70,
-        "temperatura": 48,
+        "eficiencia": 87,
+        "temperatura": 30,
         "operacao": true,
         "alerta": false
     },
@@ -95,10 +95,10 @@
         "tempoConsumo": "31",
         "empresa": "Curco company",
         "status": "ativa",
-        "eficiencia": 90,
-        "temperatura": 80,
+        "eficiencia": 98,
+        "temperatura": 48,
         "operacao": true,
-        "alerta": true
+        "alerta": false
     },
     {
         "nome": "f",
@@ -108,8 +108,8 @@
         "tempoConsumo": "3",
         "empresa": "Curco company",
         "status": "ativa",
-        "eficiencia": 98,
-        "temperatura": 52,
+        "eficiencia": 90,
+        "temperatura": 58,
         "operacao": true,
         "alerta": false
     },
@@ -122,7 +122,7 @@
         "empresa": "Curco company",
         "status": "ativa",
         "eficiencia": 99,
-        "temperatura": 49,
+        "temperatura": 79,
         "operacao": true,
         "alerta": false
     },
@@ -134,8 +134,8 @@
         "tempoConsumo": "3123",
         "empresa": "Curco company",
         "status": "ativa",
-        "eficiencia": 90,
-        "temperatura": 79,
+        "eficiencia": 86,
+        "temperatura": 25,
         "operacao": true,
         "alerta": false
     },
@@ -147,8 +147,8 @@
         "tempoConsumo": "3123",
         "empresa": "Curco company",
         "status": "ativa",
-        "eficiencia": 98,
-        "temperatura": 51,
+        "eficiencia": 95,
+        "temperatura": 32,
         "operacao": true,
         "alerta": false
     },
@@ -238,8 +238,8 @@
         "tempoConsumo": "87875",
         "empresa": "Empresa Alfa",
         "status": "ativa",
-        "eficiencia": 98,
-        "temperatura": 59,
+        "eficiencia": 81,
+        "temperatura": 73,
         "operacao": true,
         "alerta": false
     }
