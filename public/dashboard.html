@@ -66,7 +66,10 @@
               <i class="fa-solid fa-users-gear"></i> Gerenciar Integrantes
             </a>
 
-            <a href="#"><i class="fa-solid fa-bell"></i> Notificações</a>
+            <a href="#" id="linkNotificacoes">
+              <i class="fa-solid fa-bell"></i> Notificações
+              <span id="badgeNotificacoes" class="badge-contador" style="display: none;">0</span>
+            </a>
             <hr />
             <a href="#" class="btn-logout" id="bntLogout">
               <i class="fa-solid fa-right-from-bracket"></i> Sair da Conta
@@ -318,6 +321,22 @@
       <p>Estado atual: <strong id="modalStatusMaquina">-</strong></p>
     </div>
 
+    <!-- Exibido para todos quando a máquina estiver desativada -->
+    <div id="infoDesligamentoModal"
+      style="display: none; background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; padding: 12px 14px; border-radius: 10px; margin-top: 12px; font-size: 0.9rem; line-height: 1.5;">
+      <p style="margin: 0;"><strong><i class="fa-solid fa-power-off"></i> Máquina desativada</strong></p>
+      <p id="modalMotivoDesligamento" style="margin: 6px 0 0;"></p>
+      <p id="modalQuemDesligou" style="display: none; margin: 6px 0 0; color: #7f1d1d; font-size: 0.84rem;"></p>
+    </div>
+
+    <!-- Campo preenchido ao desligar a máquina -->
+    <div id="boxMotivoDesligamento" class="form-group" style="display: none; margin-top: 14px;">
+      <label for="motivoDesligamentoInput">Motivo do desligamento <span style="color: #dc2626;">*</span></label>
+      <textarea id="motivoDesligamentoInput" rows="3" maxlength="300"
+        placeholder="Descreva por que a máquina está sendo desativada (ex: manutenção preventiva, superaquecimento, fim de turno)..."></textarea>
+      <p id="msgMotivoDesligamento" style="display: none; color: #dc2626; font-size: 0.84rem; margin: 6px 0 0;"></p>
+    </div>
+
     <div class="popup-actions" style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
       <button type="button" class="btn-secondary" onclick="document.getElementById('popupStatusMaquina').close()">
         Cancelar
@@ -470,6 +489,27 @@
     </div>
   </dialog>
 
+  <!-- ========== POPUP: NOTIFICAÇÕES ========== -->
+  <dialog id="popupNotificacoes" class="popup-gestao">
+    <div class="popup-header">
+      <h2>Notificações do Sistema</h2>
+      <p>Registo de desligamentos, motivos e eventos recentes das máquinas.</p>
+    </div>
+
+    <div id="listaNotificacoes"
+      style="display: flex; flex-direction: column; gap: 10px; max-height: 360px; overflow-y: auto; margin-top: 12px;">
+    </div>
+
+    <div class="popup-actions" style="display: flex; justify-content: space-between; margin-top: 18px;">
+      <button type="button" id="btnLimparNotificacoes" class="btn-secondary btn-rejeitar" style="display: none;">
+        Limpar histórico
+      </button>
+      <button type="button" class="btn-secondary" onclick="document.getElementById('popupNotificacoes').close()">
+        Fechar
+      </button>
+    </div>
+  </dialog>
+
   <script>
     // 1. A identidade vem da sessão do servidor (cookie httpOnly), nunca da URL
     const esc = (v) => String(v ?? "").replace(/[&<>"']/g,
@@ -572,27 +612,45 @@
         }
 
         // Preenche a Tabela
+        // Preenche a Tabela
         const tabela = document.getElementById("machineTableBody");
         if (!tabela) return;
 
         tabela.innerHTML = "";
 
         dados.maquinas.forEach((m) => {
-          let statusClass = m.status === "ativa" ? "status-active" : "status-off";
-          let statusIcon = m.status === "ativa" ? "fa-play-circle" : "fa-stop-circle";
-          let statusText = m.status === "ativa" ? "Ativa" : "Desligada";
+          const ativa = m.status === "ativa";
+          let statusClass = ativa ? "status-active" : "status-off";
+          let statusIcon = ativa ? "fa-play-circle" : "fa-stop-circle";
+          let statusText = ativa ? "Ativa" : "Desativada";
 
-          const estaCritico = m.status === "ativa" && (m.temperatura >= 80 || m.alerta);
+          const estaCritico = ativa && (m.temperatura >= 80 || m.alerta);
 
           let tempClass = "";
           if (m.temperatura >= 100) tempClass = "temp-critical";
           else if (m.temperatura >= 80) tempClass = "temp-high";
 
+          const avisoDesativada = !ativa
+            ? `<div style="font-size: 0.8rem; color: #b91c1c; font-weight: 500; margin-top: 4px;">
+                 <i class="fa-solid fa-circle-info"></i> Máquina desativada${m.motivoDesligamento ? ` — Motivo: ${esc(m.motivoDesligamento)}` : ""}
+               </div>`
+            : "";
+
+          const infoGerente = (!ativa && nivelUsuario === "gerente" && m.desligadaPor)
+            ? `<div style="font-size: 0.78rem; color: #475569; font-weight: 500; margin-top: 2px;">
+                 <i class="fa-solid fa-user-check"></i> Desligada por: <strong>${esc(m.desligadaPor)}</strong>${m.desligadaEm ? ` em ${esc(dataBR(m.desligadaEm))}` : ""}
+               </div>`
+            : "";
+
           const linha = `
-        <tr class="machine-row" style="cursor: pointer;" data-nome="${esc(m.nome)}" data-status="${esc(m.status)}">
+        <tr class="machine-row" style="cursor: pointer;">
             <td style="font-weight: 600;">
-                <i class="fa-solid fa-microchip" style="color: #1a237e; margin-right: 8px;"></i>
-                ${esc(m.nome)}
+                <div>
+                  <i class="fa-solid fa-microchip" style="color: #1a237e; margin-right: 8px;"></i>
+                  ${esc(m.nome)}
+                </div>
+                ${avisoDesativada}
+                ${infoGerente}
             </td>
             <td>
                 <span class="status-badge ${statusClass}">
@@ -620,11 +678,11 @@
             </td>
         </tr>
       `;
-          tabela.innerHTML += linha;
+          tabela.insertAdjacentHTML("beforeend", linha);
+          tabela.lastElementChild.addEventListener("click", () => abrirPopupMaquina(m));
         });
-        tabela.querySelectorAll(".machine-row").forEach((tr) => {
-          tr.addEventListener("click", () => abrirPopupMaquina(tr.dataset.nome, tr.dataset.status));
-        });
+
+        await carregarNotificacoes(false);
 
       } catch (erro) {
         console.error("Erro ao carregar dados:", erro);
@@ -660,15 +718,46 @@
     }
 
     // 6. Pop-up de Estado
-    function abrirPopupMaquina(nome, status) {
-      maquinaSelecionada = { nome, status };
+    function abrirPopupMaquina(maquina) {
+      maquinaSelecionada = maquina;
+      const ativa = maquina.status === "ativa";
 
-      document.getElementById("modalNomeMaquina").textContent = nome;
-      document.getElementById("modalStatusMaquina").textContent = status === "ativa" ? "Ativa" : "Desligada";
+      document.getElementById("modalNomeMaquina").textContent = maquina.nome;
+      document.getElementById("modalStatusMaquina").textContent = ativa ? "Ativa" : "Desativada";
+
+      // Info de desligamento (visível quando a máquina está desativada)
+      const infoBox = document.getElementById("infoDesligamentoModal");
+      const elMotivo = document.getElementById("modalMotivoDesligamento");
+      const elQuem = document.getElementById("modalQuemDesligou");
+
+      if (!ativa) {
+        infoBox.style.display = "block";
+        elMotivo.textContent = maquina.motivoDesligamento
+          ? `Motivo: ${maquina.motivoDesligamento}`
+          : "Motivo não informado.";
+
+        if (nivelUsuario === "gerente" && maquina.desligadaPor) {
+          elQuem.style.display = "block";
+          elQuem.textContent = `Desligada por: ${maquina.desligadaPor}${maquina.desligadaEm ? ` (${dataBR(maquina.desligadaEm)})` : ""}`;
+        } else {
+          elQuem.style.display = "none";
+        }
+      } else {
+        infoBox.style.display = "none";
+      }
+
+      // Campo para preencher o motivo (apenas quando a máquina está ativa e o usuário pode desligar)
+      const podeAlterar = ["gerente", "supervisor", "tecnico"].includes(nivelUsuario);
+      const boxMotivo = document.getElementById("boxMotivoDesligamento");
+      const inputMotivo = document.getElementById("motivoDesligamentoInput");
+      const msgMotivo = document.getElementById("msgMotivoDesligamento");
+
+      inputMotivo.value = "";
+      msgMotivo.style.display = "none";
+      boxMotivo.style.display = (ativa && podeAlterar) ? "block" : "none";
 
       const btnAlternar = document.getElementById("btnAlternarStatusModal");
-
-      if (status === "ativa") {
+      if (ativa) {
         btnAlternar.textContent = "Desligar Máquina";
         btnAlternar.style.backgroundColor = "#dc2626";
       } else {
@@ -741,24 +830,36 @@
       };
 
       if (novoStatus === "inativa") {
+        const motivo = document.getElementById("motivoDesligamentoInput").value.trim();
+        const msgMotivo = document.getElementById("msgMotivoDesligamento");
+
+        if (motivo.length < 3) {
+          msgMotivo.textContent = "Informe o motivo do desligamento (mínimo 3 caracteres).";
+          msgMotivo.style.display = "block";
+          document.getElementById("motivoDesligamentoInput").focus();
+          return;
+        }
+        msgMotivo.style.display = "none";
+
         dadosAtualizacao.temperatura = 20;
         dadosAtualizacao.eficiencia = 0;
         dadosAtualizacao.alerta = false;
+        dadosAtualizacao.motivoDesligamento = motivo;
+      } else {
+        dadosAtualizacao.motivoDesligamento = null;
       }
 
       try {
-        const resposta = await fetch("/api/maquinas", {
+        const { ok, dados } = await apiFetch("/api/maquinas", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
           body: JSON.stringify(dadosAtualizacao)
         });
-        if (resposta.status === 401) { window.location.href = "login.html"; return; }
 
-        if (resposta.ok) {
+        if (ok) {
           document.getElementById("popupStatusMaquina").close();
-          carregarDashboard();
+          await carregarDashboard();
         } else {
-          alert("Erro ao alterar o estado da máquina.");
+          alert(dados.erro || "Erro ao alterar o estado da máquina.");
         }
       } catch (erro) {
         console.error("Erro ao comunicar com o servidor:", erro);
@@ -1111,6 +1212,92 @@
           btn.disabled = false;
         }
       });
+    });
+
+    // ============ NOTIFICAÇÕES DO SISTEMA ============
+    async function carregarNotificacoes(abrirModal = false) {
+      try {
+        const { ok, dados } = await apiFetch("/api/notificacoes");
+        if (!ok) return;
+
+        const lista = Array.isArray(dados) ? dados : [];
+        const naoLidas = lista.filter((n) => !n.lida).length;
+
+        const badgeNotif = document.getElementById("badgeNotificacoes");
+        if (badgeNotif) {
+          badgeNotif.textContent = naoLidas;
+          badgeNotif.style.display = naoLidas > 0 ? "inline-block" : "none";
+        }
+
+        const btnLimpar = document.getElementById("btnLimparNotificacoes");
+        if (btnLimpar) {
+          btnLimpar.style.display = (nivelUsuario === "gerente" && lista.length > 0) ? "inline-block" : "none";
+        }
+
+        const container = document.getElementById("listaNotificacoes");
+        if (container) {
+          if (!lista.length) {
+            container.innerHTML = '<p style="color: #64748b; text-align: center; padding: 20px 0;">Nenhuma notificação registada.</p>';
+          } else {
+            container.innerHTML = lista.map((n) => {
+              const desligada = n.tipo === "desligamento";
+              const corBorda = desligada ? "#fecaca" : "#bbf7d0";
+              const corFundo = desligada ? "#fef2f2" : "#f0fdf4";
+              const corTitulo = desligada ? "#991b1b" : "#166534";
+              const icone = desligada ? "fa-power-off" : "fa-play-circle";
+              const titulo = desligada
+                ? `Máquina desativada: ${esc(n.maquina)}`
+                : `Máquina ativada: ${esc(n.maquina)}`;
+
+              const linhaMotivo = (desligada && n.motivo)
+                ? `<p style="margin: 6px 0 0; color: #334155; font-size: 0.88rem;"><strong>Motivo:</strong> ${esc(n.motivo)}</p>`
+                : "";
+
+              const linhaGerente = (nivelUsuario === "gerente" && n.por)
+                ? `<p style="margin: 4px 0 0; color: #475569; font-size: 0.8rem;"><i class="fa-solid fa-user-check"></i> ${desligada ? "Desligada" : "Ativada"} por: <strong>${esc(n.por)}</strong></p>`
+                : "";
+
+              return `
+                <div style="background: ${corFundo}; border: 1px solid ${corBorda}; border-radius: 10px; padding: 12px 14px;">
+                  <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+                    <strong style="color: ${corTitulo}; font-size: 0.92rem;">
+                      <i class="fa-solid ${icone}" style="margin-right: 6px;"></i>${titulo}
+                    </strong>
+                    <span style="font-size: 0.76rem; color: #64748b; white-space: nowrap;">${esc(dataBR(n.criadoEm))}</span>
+                  </div>
+                  ${linhaMotivo}
+                  ${linhaGerente}
+                </div>
+              `;
+            }).join("");
+          }
+        }
+
+        if (abrirModal) {
+          const sidebar = document.getElementById("sidebar-usuario");
+          const overlay = document.getElementById("overlay-sidebar");
+          if (sidebar) sidebar.classList.remove("open");
+          if (overlay) overlay.classList.remove("open");
+          document.getElementById("popupNotificacoes").showModal();
+
+          if (naoLidas > 0) {
+            await apiFetch("/api/notificacoes/ler", { method: "POST" });
+            if (badgeNotif) badgeNotif.style.display = "none";
+          }
+        }
+      } catch (e) {
+        console.error("Erro ao carregar notificações:", e);
+      }
+    }
+
+    document.getElementById("linkNotificacoes").addEventListener("click", (e) => {
+      e.preventDefault();
+      carregarNotificacoes(true);
+    });
+
+    document.getElementById("btnLimparNotificacoes").addEventListener("click", async () => {
+      const { ok } = await apiFetch("/api/notificacoes", { method: "DELETE" });
+      if (ok) await carregarNotificacoes(false);
     });
 
   </script>

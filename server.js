@@ -68,6 +68,32 @@ function gravarMaquinas(maquinas) {
     fs.renameSync(tmp, ARQUIVO_MAQUINAS); // troca atômica
 }
 
+const ARQUIVO_NOTIFICACOES = path.join(path.dirname(ARQUIVO_MAQUINAS), "notificacoes.json");
+
+function lerNotificacoes() {
+    try {
+        return JSON.parse(fs.readFileSync(ARQUIVO_NOTIFICACOES, "utf8"));
+    } catch {
+        return [];
+    }
+}
+
+function registrarNotificacao(item) {
+    try {
+        const lista = lerNotificacoes();
+        lista.unshift({
+            id: Date.now() + Math.floor(Math.random() * 1000),
+            criadoEm: new Date().toISOString(),
+            ...item
+        });
+        const tmp = ARQUIVO_NOTIFICACOES + ".tmp";
+        fs.writeFileSync(tmp, JSON.stringify(lista.slice(0, 100), null, 2));
+        fs.renameSync(tmp, ARQUIVO_NOTIFICACOES);
+    } catch (e) {
+        console.error("Erro ao gravar notificacoes.json:", e.message);
+    }
+}
+
 // 📡 SIMULADOR DE DADOS DO FINDER OPTA (mantido como estava)
 function simularDadosContinuos() {
     return comExclusao(() => {
@@ -115,10 +141,62 @@ app.get("/api/maquinas", exigirLogin, (req, res) => {
         if (m.status === "ativa" && (m.alerta || m.temperatura >= 80)) alertas++;
         eficienciaTotal += m.eficiencia || 0;
     });
+
+    // Oculta quem desligou a máquina para quem não é gerente
+    const maquinasVisiveis = maquinas.map((m) => {
+        if (req.user.nivel === "gerente") return m;
+        const { desligadaPor, desligadaEm, ...dadosPublicos } = m;
+        return dadosPublicos;
+    });
+
     res.json({
-        maquinas, total, ativas, operacao, alertas,
+        maquinas: maquinasVisiveis, total, ativas, operacao, alertas,
         mediaEficiencia: total > 0 ? Math.round(eficienciaTotal / total) : 0
     });
+});
+
+app.get("/api/notificacoes", exigirLogin, exigirEmpresa, (req, res) => {
+    const lista = lerNotificacoes()
+        .filter((n) => mesmaEmpresa(n, req.user.empresa_nome))
+        .map((n) => {
+            const lida = Array.isArray(n.lidasPor) && n.lidasPor.includes(req.user.id);
+            const { lidasPor, por, ...publico } = n;
+            return req.user.nivel === "gerente"
+                ? { ...publico, por, lida }
+                : { ...publico, lida };
+        });
+    res.json(lista);
+});
+
+app.post("/api/notificacoes/ler", exigirLogin, exigirEmpresa, (req, res) => {
+    const lista = lerNotificacoes();
+    let alterou = false;
+
+    lista.forEach((n) => {
+        if (mesmaEmpresa(n, req.user.empresa_nome)) {
+            if (!Array.isArray(n.lidasPor)) n.lidasPor = [];
+            if (!n.lidasPor.includes(req.user.id)) {
+                n.lidasPor.push(req.user.id);
+                alterou = true;
+            }
+        }
+    });
+
+    if (alterou) {
+        const tmp = ARQUIVO_NOTIFICACOES + ".tmp";
+        fs.writeFileSync(tmp, JSON.stringify(lista, null, 2));
+        fs.renameSync(tmp, ARQUIVO_NOTIFICACOES);
+    }
+
+    res.json({ ok: true });
+});
+
+app.delete("/api/notificacoes", exigirLogin, exigirNivel("gerente"), exigirEmpresa, (req, res) => {
+    const restantes = lerNotificacoes().filter((n) => !mesmaEmpresa(n, req.user.empresa_nome));
+    const tmp = ARQUIVO_NOTIFICACOES + ".tmp";
+    fs.writeFileSync(tmp, JSON.stringify(restantes, null, 2));
+    fs.renameSync(tmp, ARQUIVO_NOTIFICACOES);
+    res.json({ ok: true });
 });
 
 const texto = (v, max) => (typeof v === "string" ? v.trim().slice(0, max) : "");
@@ -135,15 +213,54 @@ app.post("/api/maquinas", exigirLogin, exigirEmpresa, (req, res) => {
         const indice = maquinas.findIndex((m) => m.nome === nome && mesmaEmpresa(m, req.user.empresa_nome));
 
         if (indice !== -1) {
-            if (!["gerente", "supervisor", "tecnico"].includes(req.user.nivel)) return { status: 403, corpo: { erro: "Você não tem permissão para esta ação." } };
+            if (!["gerente", "supervisor", "tecnico"].includes(req.user.nivel)) {
+                return { status: 403, corpo: { erro: "Você não tem permissão para esta ação." } };
+            }
             const m = maquinas[indice];
+            const statusAnterior = m.status;
+
+            if (dados.status === "inativa") {
+                const motivo = texto(dados.motivoDesligamento, 300);
+                if (motivo.length < 3) {
+                    return { status: 400, corpo: { erro: "Informe o motivo do desligamento." } };
+                }
+                m.motivoDesligamento = motivo;
+                m.desligadaPor = req.user.nome;
+                m.desligadaEm = new Date().toISOString();
+
+                if (statusAnterior !== "inativa") {
+                    registrarNotificacao({
+                        empresa: req.user.empresa_nome,
+                        tipo: "desligamento",
+                        maquina: m.nome,
+                        motivo,
+                        por: req.user.nome
+                    });
+                }
+            } else if (dados.status === "ativa") {
+                m.motivoDesligamento = null;
+                m.desligadaPor = null;
+                m.desligadaEm = null;
+
+                if (statusAnterior !== "ativa") {
+                    registrarNotificacao({
+                        empresa: req.user.empresa_nome,
+                        tipo: "ligada",
+                        maquina: m.nome,
+                        por: req.user.nome
+                    });
+                }
+            }
+
             if (typeof dados.status === "string") m.status = texto(dados.status, 20);
             if (typeof dados.operacao === "boolean") m.operacao = dados.operacao;
             if (Number.isFinite(dados.temperatura)) m.temperatura = dados.temperatura;
             if (Number.isFinite(dados.eficiencia)) m.eficiencia = dados.eficiencia;
             if (typeof dados.alerta === "boolean") m.alerta = dados.alerta;
         } else {
-            if (!["gerente", "supervisor"].includes(req.user.nivel)) return { status: 403, corpo: { erro: "Você não tem permissão para esta ação." } };
+            if (!["gerente", "supervisor"].includes(req.user.nivel)) {
+                return { status: 403, corpo: { erro: "Você não tem permissão para esta ação." } };
+            }
             maquinas.push({
                 nome,
                 empresa: req.user.empresa_nome,

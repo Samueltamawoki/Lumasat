@@ -1,0 +1,39 @@
+[
+  {
+    "id": 1795439406439,
+    "criadoEm": "2026-11-23T13:10:06.234Z",
+    "empresa": "Empresa Beta",
+    "tipo": "ligada",
+    "maquina": "Torno Mecânico 04",
+    "por": "lucas y",
+    "lidasPor": [
+      3,
+      11
+    ]
+  },
+  {
+    "id": 1795439005201,
+    "criadoEm": "2026-11-23T13:03:25.008Z",
+    "empresa": "Empresa Beta",
+    "tipo": "desligamento",
+    "maquina": "Torno Mecânico 04",
+    "motivo": "uper aqueceu",
+    "por": "lucas y",
+    "lidasPor": [
+      3,
+      11
+    ]
+  },
+  {
+    "id": 1795438989390,
+    "criadoEm": "2026-11-23T13:03:09.144Z",
+    "empresa": "Empresa Beta",
+    "tipo": "ligada",
+    "maquina": "Torno Mecânico 04",
+    "por": "lucas y",
+    "lidasPor": [
+      3,
+      11
+    ]
+  }
+]
