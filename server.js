@@ -509,6 +509,17 @@ app.delete("/api/maquinas", ...guardaGerente, async (req, res) => {
     res.json({ ok: true });
 });
 
+app.get("/api/telemetria/tabela", (req, res) => {
+    const chave = req.headers["x-api-key"];
+    if (!process.env.OPTA_API_KEY || chave !== process.env.OPTA_API_KEY) {
+        return res.status(401).json({ erro: "Chave inválida." });
+    }
+    db.query("SELECT * FROM telemetria ORDER BY criado_em DESC", (err, rows) => {
+        if (err) return res.status(500).json({ erro: err.message });
+        res.json(rows);
+    });
+});
+
 
 // =============================================================
 // INICIALIZAÇÃO (só quando executado diretamente; os testes importam o `app`)
